@@ -38,7 +38,13 @@ LWS addresses this gap. It defines a minimal, chain-agnostic standard for wallet
 
 Read the spec starting with [`docs/01-storage-format.md`](docs/01-storage-format.md), or browse it at [localwalletstandard.org](https://localwalletstandard.org).
 
-To build the reference implementation:
+Install the reference implementation:
+
+```bash
+curl -sSf https://raw.githubusercontent.com/dawnlabsai/lws/main/lws/install.sh | bash
+```
+
+Or build from source:
 
 ```bash
 cd lws
