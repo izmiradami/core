@@ -1,4 +1,5 @@
 pub mod chains;
+pub mod crypto;
 pub mod curve;
 pub mod hd;
 pub mod mnemonic;
@@ -6,6 +7,7 @@ pub mod traits;
 pub mod zeroizing;
 
 pub use chains::signer_for_chain;
+pub use crypto::{decrypt, encrypt, CipherParams, CryptoEnvelope, CryptoError, KdfParams};
 pub use curve::Curve;
 pub use hd::HdDeriver;
 pub use mnemonic::{Mnemonic, MnemonicStrength};

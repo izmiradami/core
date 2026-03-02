@@ -1,6 +1,7 @@
-use lws_core::{AccountDescriptor, AccountId, ChainId, ChainType, WalletDescriptor, WalletId};
-use lws_signer::{signer_for_chain, HdDeriver, Mnemonic, MnemonicStrength};
+use lws_core::{ChainType, EncryptedWallet, KeyType, WalletAccount};
+use lws_signer::{encrypt, signer_for_chain, HdDeriver, Mnemonic, MnemonicStrength};
 
+use crate::audit;
 use crate::vault;
 use crate::{parse_chain, CliError};
 
@@ -15,7 +16,7 @@ fn default_chain_reference(chain: ChainType) -> &'static str {
     }
 }
 
-pub fn create(name: &str, chain_str: &str, words: u32) -> Result<(), CliError> {
+pub fn create(name: &str, chain_str: &str, words: u32, show_mnemonic: bool) -> Result<(), CliError> {
     let chain = parse_chain(chain_str)?;
     let strength = match words {
         12 => MnemonicStrength::Words12,
@@ -23,6 +24,10 @@ pub fn create(name: &str, chain_str: &str, words: u32) -> Result<(), CliError> {
         _ => return Err(CliError::InvalidArgs("--words must be 12 or 24".into())),
     };
 
+    // Prompt for passphrase (with confirmation)
+    let passphrase = vault::get_passphrase(true)?;
+
+    // Generate mnemonic
     let mnemonic = Mnemonic::generate(strength)?;
     let signer = signer_for_chain(chain);
     let path = signer.default_derivation_path(0);
@@ -32,49 +37,59 @@ pub fn create(name: &str, chain_str: &str, words: u32) -> Result<(), CliError> {
     let address = signer.derive_address(key.expose())?;
 
     let chain_id_str = format!("{}:{}", chain.namespace(), default_chain_reference(chain));
-    let chain_id: ChainId = chain_id_str
-        .parse()
-        .map_err(|e: lws_core::LwsError| CliError::InvalidArgs(e.to_string()))?;
+    let account_id_str = format!("{chain_id_str}:{address}");
 
-    let account_id_str = format!("{chain_id}:{address}");
-    let account_id: AccountId = account_id_str
-        .parse()
-        .map_err(|e: lws_core::LwsError| CliError::InvalidArgs(e.to_string()))?;
-
-    let wallet = WalletDescriptor {
-        id: WalletId::new(),
-        name: name.to_string(),
-        chains: vec![chain],
-        accounts: vec![AccountDescriptor {
-            chain: chain_id,
-            address: address.clone(),
-            derivation_path: path.clone(),
-            account_id,
-        }],
-        created_at: chrono::Utc::now(),
-        updated_at: None,
-    };
-
-    vault::save_wallet(&wallet)?;
-
+    // Encrypt the mnemonic entropy
     let phrase = mnemonic.phrase();
-    let phrase_str = String::from_utf8(phrase.expose().to_vec())
-        .map_err(|e| CliError::InvalidArgs(format!("invalid UTF-8 in mnemonic: {e}")))?;
+    let crypto_envelope = encrypt(phrase.expose(), &passphrase)?;
+    let crypto_json = serde_json::to_value(&crypto_envelope)?;
 
-    println!("Wallet created: {}", wallet.id);
-    println!("Name:           {}", wallet.name);
+    let wallet_id = uuid::Uuid::new_v4().to_string();
+
+    let wallet = EncryptedWallet::new(
+        wallet_id.clone(),
+        name.to_string(),
+        chain,
+        vec![WalletAccount {
+            account_id: account_id_str,
+            address: address.clone(),
+            chain_id: chain_id_str.clone(),
+            derivation_path: path.clone(),
+        }],
+        crypto_json,
+        KeyType::Mnemonic,
+    );
+
+    vault::save_encrypted_wallet(&wallet)?;
+
+    // Audit log
+    audit::log_wallet_created(&wallet_id, &chain_id_str, &address);
+
+    println!("Wallet created: {wallet_id}");
+    println!("Name:           {name}");
     println!("Chain:          {chain}");
     println!("Address:        {address}");
     println!("Path:           {path}");
-    println!();
-    println!("Mnemonic (save this — it will NOT be stored):");
-    println!("{phrase_str}");
+
+    if show_mnemonic {
+        let phrase_str = String::from_utf8(phrase.expose().to_vec())
+            .map_err(|e| CliError::InvalidArgs(format!("invalid UTF-8 in mnemonic: {e}")))?;
+        eprintln!();
+        eprintln!("⚠️  WARNING: The mnemonic below provides FULL ACCESS to this wallet.");
+        eprintln!("⚠️  Store it securely offline. It will NOT be shown again.");
+        eprintln!();
+        println!("{phrase_str}");
+    } else {
+        eprintln!();
+        eprintln!("Mnemonic encrypted and saved to vault.");
+        eprintln!("Use --show-mnemonic at creation time if you need a backup copy.");
+    }
 
     Ok(())
 }
 
 pub fn list() -> Result<(), CliError> {
-    let wallets = vault::list_wallets()?;
+    let wallets = vault::list_encrypted_wallets()?;
 
     if wallets.is_empty() {
         println!("No wallets found.");
@@ -84,18 +99,12 @@ pub fn list() -> Result<(), CliError> {
     for w in &wallets {
         println!("ID:      {}", w.id);
         println!("Name:    {}", w.name);
-        println!(
-            "Chains:  {}",
-            w.chains
-                .iter()
-                .map(|c| c.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        println!("Chain:   {}", w.chain_type);
+        println!("Secured: ✓ (encrypted)");
         for acct in &w.accounts {
-            println!("  {} → {}", acct.chain, acct.address);
+            println!("  {} → {}", acct.chain_id, acct.address);
         }
-        println!("Created: {}", w.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
+        println!("Created: {}", w.created_at);
         println!();
     }
 

@@ -1,3 +1,4 @@
+mod audit;
 mod commands;
 mod vault;
 
@@ -5,7 +6,7 @@ use clap::{Parser, Subcommand};
 use lws_core::{ChainType, LwsError};
 use lws_signer::hd::HdError;
 use lws_signer::mnemonic::MnemonicError;
-use lws_signer::SignerError;
+use lws_signer::{CryptoError, SignerError};
 
 /// Lightweight Wallet Signer CLI
 #[derive(Parser)]
@@ -23,11 +24,8 @@ enum Commands {
         #[arg(long, default_value = "12")]
         words: u32,
     },
-    /// Derive an address from a mnemonic
+    /// Derive an address from a mnemonic (reads mnemonic from stdin)
     Derive {
-        /// BIP-39 mnemonic phrase
-        #[arg(long)]
-        mnemonic: String,
         /// Chain type (evm, solana, bitcoin, cosmos, tron)
         #[arg(long)]
         chain: String,
@@ -35,11 +33,8 @@ enum Commands {
         #[arg(long, default_value = "0")]
         index: u32,
     },
-    /// Sign a message with a mnemonic-derived key
+    /// Sign a message with a mnemonic-derived key (reads mnemonic from stdin)
     Sign {
-        /// BIP-39 mnemonic phrase
-        #[arg(long)]
-        mnemonic: String,
         /// Chain type (evm, solana, bitcoin, cosmos, tron)
         #[arg(long)]
         chain: String,
@@ -52,7 +47,7 @@ enum Commands {
     },
     /// Show vault path and supported chains
     Info,
-    /// Create a new wallet (generates mnemonic, saves descriptor)
+    /// Create a new wallet (generates mnemonic, encrypts and saves to vault)
     CreateWallet {
         /// Wallet name
         #[arg(long)]
@@ -63,6 +58,9 @@ enum Commands {
         /// Number of words (12 or 24)
         #[arg(long, default_value = "12")]
         words: u32,
+        /// Display the generated mnemonic (DANGEROUS — only for backup)
+        #[arg(long)]
+        show_mnemonic: bool,
     },
     /// List all saved wallets
     ListWallets,
@@ -91,6 +89,8 @@ enum CliError {
     #[error("{0}")]
     Signer(#[from] SignerError),
     #[error("{0}")]
+    Crypto(#[from] CryptoError),
+    #[error("{0}")]
     Io(#[from] std::io::Error),
     #[error("{0}")]
     Json(#[from] serde_json::Error),
@@ -101,6 +101,19 @@ enum CliError {
 fn parse_chain(s: &str) -> Result<ChainType, CliError> {
     s.parse::<ChainType>()
         .map_err(|e| CliError::InvalidArgs(e))
+}
+
+/// Read a mnemonic phrase from stdin (one line).
+fn read_mnemonic_stdin() -> Result<String, CliError> {
+    let mut line = String::new();
+    std::io::Read::read_to_string(&mut std::io::stdin(), &mut line)?;
+    let trimmed = line.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(CliError::InvalidArgs(
+            "no mnemonic provided on stdin — pipe it in: echo \"word1 word2 ...\" | lws derive ...".into(),
+        ));
+    }
+    Ok(trimmed)
 }
 
 fn main() {
@@ -114,23 +127,25 @@ fn main() {
 fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Commands::Generate { words } => commands::generate::run(words),
-        Commands::Derive {
-            mnemonic,
-            chain,
-            index,
-        } => commands::derive::run(&mnemonic, &chain, index),
+        Commands::Derive { chain, index } => {
+            let mnemonic = read_mnemonic_stdin()?;
+            commands::derive::run(&mnemonic, &chain, index)
+        }
         Commands::Sign {
-            mnemonic,
             chain,
             message,
             index,
-        } => commands::sign::run(&mnemonic, &chain, &message, index),
+        } => {
+            let mnemonic = read_mnemonic_stdin()?;
+            commands::sign::run(&mnemonic, &chain, &message, index)
+        }
         Commands::Info => commands::info::run(),
         Commands::CreateWallet {
             name,
             chain,
             words,
-        } => commands::wallet::create(&name, &chain, words),
+            show_mnemonic,
+        } => commands::wallet::create(&name, &chain, words, show_mnemonic),
         Commands::ListWallets => commands::wallet::list(),
         Commands::Update { force } => commands::update::run(force),
         Commands::Uninstall { purge } => commands::uninstall::run(purge),

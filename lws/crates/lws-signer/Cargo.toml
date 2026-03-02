@@ -21,6 +21,8 @@ hex = "0.4"
 hmac = "0.12"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
+aes-gcm = "0.10"
+scrypt = "0.11"
 digest = "0.10"
 
 [dev-dependencies]
