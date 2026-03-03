@@ -33,11 +33,57 @@ enum Commands {
         #[arg(long, default_value = "0")]
         index: u32,
     },
-    /// Sign a message with a mnemonic-derived key (reads from LWS_MNEMONIC env or stdin)
+    /// Sign a message with chain-specific formatting (EIP-191, Bitcoin message signing, etc.)
+    SignMessage {
+        /// Chain type (evm, solana, bitcoin, cosmos, tron)
+        #[arg(long)]
+        chain: String,
+        /// Wallet name or ID (uses stored encrypted mnemonic)
+        #[arg(long, env = "LWS_WALLET")]
+        wallet: String,
+        /// Message to sign
+        #[arg(long)]
+        message: String,
+        /// Message encoding: "utf8" or "hex"
+        #[arg(long, default_value = "utf8")]
+        encoding: String,
+        /// EIP-712 typed data JSON (EVM only)
+        #[arg(long)]
+        typed_data: Option<String>,
+        /// Account index
+        #[arg(long, default_value = "0")]
+        index: u32,
+        /// Output structured JSON instead of raw hex
+        #[arg(long)]
+        json: bool,
+    },
+    /// Sign a transaction (accepts hex-encoded unsigned transaction bytes)
+    SignTransaction {
+        /// Chain type (evm, solana, bitcoin, cosmos, tron)
+        #[arg(long)]
+        chain: String,
+        /// Wallet name or ID (uses stored encrypted mnemonic)
+        #[arg(long, env = "LWS_WALLET")]
+        wallet: String,
+        /// Hex-encoded unsigned transaction bytes
+        #[arg(long)]
+        tx: String,
+        /// Account index
+        #[arg(long, default_value = "0")]
+        index: u32,
+        /// Output structured JSON instead of raw hex
+        #[arg(long)]
+        json: bool,
+    },
+    /// (Deprecated) Alias for sign-message with UTF-8 encoding
+    #[command(hide = true)]
     Sign {
         /// Chain type (evm, solana, bitcoin, cosmos, tron)
         #[arg(long)]
         chain: String,
+        /// Wallet name or ID (uses stored encrypted mnemonic)
+        #[arg(long, env = "LWS_WALLET")]
+        wallet: String,
         /// Message to sign
         #[arg(long)]
         message: String,
@@ -98,7 +144,7 @@ enum CliError {
     InvalidArgs(String),
 }
 
-fn parse_chain(s: &str) -> Result<ChainType, CliError> {
+pub(crate) fn parse_chain(s: &str) -> Result<ChainType, CliError> {
     s.parse::<ChainType>()
         .map_err(|e| CliError::InvalidArgs(e))
 }
@@ -130,11 +176,36 @@ fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Commands::Generate { words } => commands::generate::run(words),
         Commands::Derive { chain, index } => commands::derive::run(&chain, index),
+        Commands::SignMessage {
+            chain,
+            wallet,
+            message,
+            encoding,
+            typed_data,
+            index,
+            json,
+        } => commands::sign_message::run(
+            &chain,
+            &wallet,
+            &message,
+            &encoding,
+            typed_data.as_deref(),
+            index,
+            json,
+        ),
+        Commands::SignTransaction {
+            chain,
+            wallet,
+            tx,
+            index,
+            json,
+        } => commands::sign_transaction::run(&chain, &wallet, &tx, index, json),
         Commands::Sign {
             chain,
+            wallet,
             message,
             index,
-        } => commands::sign::run(&chain, &message, index),
+        } => commands::sign::run(&chain, &wallet, &message, index),
         Commands::Info => commands::info::run(),
         Commands::CreateWallet {
             name,

@@ -108,6 +108,29 @@ pub fn list_encrypted_wallets() -> Result<Vec<EncryptedWallet>, CliError> {
     Ok(wallets)
 }
 
+/// Look up a wallet by exact ID first, then by name (case-sensitive).
+/// Returns an error if no wallet matches or if the name is ambiguous.
+pub fn load_wallet_by_name_or_id(name_or_id: &str) -> Result<EncryptedWallet, CliError> {
+    let wallets = list_encrypted_wallets()?;
+
+    // Try exact ID match first
+    if let Some(w) = wallets.iter().find(|w| w.id == name_or_id) {
+        return Ok(w.clone());
+    }
+
+    // Try name match (case-sensitive)
+    let matches: Vec<&EncryptedWallet> = wallets.iter().filter(|w| w.name == name_or_id).collect();
+    match matches.len() {
+        0 => Err(CliError::InvalidArgs(format!(
+            "wallet not found: '{name_or_id}'"
+        ))),
+        1 => Ok(matches[0].clone()),
+        n => Err(CliError::InvalidArgs(format!(
+            "ambiguous wallet name '{name_or_id}' matches {n} wallets; use the wallet ID instead"
+        ))),
+    }
+}
+
 /// Prompt the user for a passphrase (with confirmation for new wallets).
 pub fn prompt_passphrase(confirm: bool) -> Result<String, CliError> {
     let pass = rpassword::prompt_password("Enter vault passphrase: ")

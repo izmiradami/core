@@ -33,6 +33,14 @@ pub trait ChainSigner: Send + Sync {
     /// Sign an arbitrary message with chain-specific prefixing/hashing.
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError>;
 
+    /// Sign an unsigned transaction. Each chain hashes the raw transaction
+    /// bytes according to its own rules before signing.
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError>;
+
     /// Returns the default BIP-44 derivation path template for this chain.
     fn default_derivation_path(&self, index: u32) -> String;
 }
@@ -51,4 +59,7 @@ pub enum SignerError {
 
     #[error("address derivation failed: {0}")]
     AddressDerivationFailed(String),
+
+    #[error("invalid transaction: {0}")]
+    InvalidTransaction(String),
 }

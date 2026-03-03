@@ -95,6 +95,16 @@ impl ChainSigner for BitcoinSigner {
         })
     }
 
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        // Bitcoin transaction signing: double SHA256 of the sighash preimage
+        let hash = Sha256::digest(Sha256::digest(tx_bytes));
+        self.sign(private_key, &hash)
+    }
+
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {
         // Bitcoin message signing: double-SHA256 of prefixed message
         let prefix = b"\x18Bitcoin Signed Message:\n";

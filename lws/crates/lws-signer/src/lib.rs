@@ -1,6 +1,7 @@
 pub mod chains;
 pub mod crypto;
 pub mod curve;
+pub mod eip712;
 pub mod hd;
 pub mod key_cache;
 pub mod mnemonic;

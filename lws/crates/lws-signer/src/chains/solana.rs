@@ -43,6 +43,15 @@ impl ChainSigner for SolanaSigner {
         })
     }
 
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        // Ed25519 signs raw message bytes directly (no prehashing)
+        self.sign(private_key, tx_bytes)
+    }
+
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {
         // Solana doesn't use a special prefix for message signing
         self.sign(private_key, message)

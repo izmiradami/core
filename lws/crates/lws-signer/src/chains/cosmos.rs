@@ -4,6 +4,7 @@ use k256::ecdsa::SigningKey;
 use lws_core::ChainType;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
+use serde_json::json;
 
 /// Cosmos chain signer (secp256k1, bech32 addresses).
 pub struct CosmosSigner {
@@ -36,6 +37,54 @@ impl CosmosSigner {
         let sha256 = Sha256::digest(data);
         let ripemd = Ripemd160::digest(sha256);
         ripemd.to_vec()
+    }
+
+    /// Sign an arbitrary message using ADR-036 off-chain signing.
+    ///
+    /// Wraps the message in a canonical ADR-036 SignDoc JSON envelope,
+    /// sorts keys, SHA256 hashes, and signs.
+    pub fn sign_message_adr036(
+        &self,
+        private_key: &[u8],
+        message: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+
+        let signer_addr = self.derive_address(private_key)?;
+        let data_b64 = STANDARD.encode(message);
+
+        // Construct the canonical ADR-036 SignDoc.
+        // Keys must be sorted alphabetically (serde_json's to_string on Value
+        // uses insertion order, so we use a sorted structure).
+        let sign_doc = json!({
+            "account_number": "0",
+            "chain_id": "",
+            "fee": {
+                "amount": [],
+                "gas": "0"
+            },
+            "memo": "",
+            "msgs": [
+                {
+                    "type": "sign/MsgSignData",
+                    "value": {
+                        "data": data_b64,
+                        "signer": signer_addr
+                    }
+                }
+            ],
+            "sequence": "0"
+        });
+
+        // Serialize to sorted JSON (serde_json sorts keys in Map by default
+        // when using serde_json::Value with the preserve_order feature OFF,
+        // which is the default). The json! macro creates BTreeMap-backed maps
+        // when preserve_order is off, giving us sorted keys.
+        let canonical = serde_json::to_string(&sign_doc)
+            .map_err(|e| SignerError::SigningFailed(e.to_string()))?;
+
+        let hash = Sha256::digest(canonical.as_bytes());
+        self.sign(private_key, &hash)
     }
 }
 
@@ -92,6 +141,16 @@ impl ChainSigner for CosmosSigner {
             signature: sig_bytes,
             recovery_id: Some(recovery_id.to_byte()),
         })
+    }
+
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        // Cosmos transaction signing: SHA256 of the serialized SignDoc
+        let hash = Sha256::digest(tx_bytes);
+        self.sign(private_key, &hash)
     }
 
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {

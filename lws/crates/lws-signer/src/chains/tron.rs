@@ -2,6 +2,7 @@ use crate::curve::Curve;
 use crate::traits::{ChainSigner, SignOutput, SignerError};
 use k256::ecdsa::SigningKey;
 use lws_core::ChainType;
+use sha2::Sha256;
 use sha3::{Digest, Keccak256};
 
 /// Tron chain signer (secp256k1, base58check addresses with 0x41 prefix).
@@ -79,6 +80,16 @@ impl ChainSigner for TronSigner {
             signature: sig_bytes,
             recovery_id: Some(recovery_id.to_byte()),
         })
+    }
+
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        // Tron transaction signing: SHA256 of the raw_data bytes
+        let hash = Sha256::digest(tx_bytes);
+        self.sign(private_key, &hash)
     }
 
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {

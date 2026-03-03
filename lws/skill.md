@@ -23,7 +23,7 @@ Minimal, offline-first CLI for generating wallets, deriving addresses, and signi
 One-liner:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dawnlabsai/lws/main/lws/install.sh | bash
+curl -fsSL https://openwallet.sh/install.sh | bash
 ```
 
 The installer will:

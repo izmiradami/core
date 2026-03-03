@@ -37,6 +37,17 @@ impl EvmSigner {
         SigningKey::from_slice(private_key)
             .map_err(|e| SignerError::InvalidPrivateKey(e.to_string()))
     }
+
+    /// Sign EIP-712 typed structured data.
+    pub fn sign_typed_data(
+        &self,
+        private_key: &[u8],
+        typed_data_json: &str,
+    ) -> Result<SignOutput, SignerError> {
+        let typed_data = crate::eip712::parse_typed_data(typed_data_json)?;
+        let hash = crate::eip712::hash_typed_data(&typed_data)?;
+        self.sign(private_key, &hash)
+    }
 }
 
 impl ChainSigner for EvmSigner {
@@ -95,6 +106,16 @@ impl ChainSigner for EvmSigner {
             signature: sig_bytes,
             recovery_id: Some(recovery_id.to_byte()),
         })
+    }
+
+    fn sign_transaction(
+        &self,
+        private_key: &[u8],
+        tx_bytes: &[u8],
+    ) -> Result<SignOutput, SignerError> {
+        // EVM transaction signing: keccak256 hash of the unsigned tx envelope
+        let hash = Keccak256::digest(tx_bytes);
+        self.sign(private_key, &hash)
     }
 
     fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {

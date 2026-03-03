@@ -121,6 +121,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -299,7 +305,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b3aeeec621f4daec552e9d28befd58020a78cfc364827d06a753e8bc13c6c4b"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "bech32 0.9.1",
  "bs58",
  "const-hex",
@@ -781,6 +787,7 @@ dependencies = [
  "rpassword",
  "serde",
  "serde_json",
+ "sha3",
  "tempfile",
  "thiserror 2.0.18",
  "uuid",
@@ -803,6 +810,7 @@ name = "lws-signer"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "base64 0.22.1",
  "bech32 0.11.1",
  "bs58",
  "coins-bip32",
