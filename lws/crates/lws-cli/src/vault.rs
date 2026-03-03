@@ -4,56 +4,60 @@ use std::path::PathBuf;
 
 use crate::CliError;
 
-/// Returns the wallets directory, creating it with strict permissions if necessary.
-pub fn wallets_dir() -> Result<PathBuf, CliError> {
-    let config = Config::default();
-    let vault = &config.vault_path;
-
-    // Create vault root and wallets dir
-    let dir = vault.join("wallets");
-    fs::create_dir_all(&dir)?;
-
-    // Set strict permissions on Unix
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(vault, fs::Permissions::from_mode(0o700));
-        let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+/// Set directory permissions to 0o700 (owner-only).
+#[cfg(unix)]
+fn set_dir_permissions(path: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let perms = fs::Permissions::from_mode(0o700);
+    if let Err(e) = fs::set_permissions(path, perms) {
+        eprintln!("warning: failed to set permissions on {}: {e}", path.display());
     }
-
-    Ok(dir)
 }
 
-/// Verify vault directory permissions are strict (owner-only).
-/// Returns an error if the vault is world-readable or group-readable.
+/// Set file permissions to 0o600 (owner read/write only).
 #[cfg(unix)]
-pub fn verify_permissions(path: &std::path::Path) -> Result<(), CliError> {
+fn set_file_permissions(path: &std::path::Path) {
     use std::os::unix::fs::PermissionsExt;
-
-    if !path.exists() {
-        return Ok(());
+    let perms = fs::Permissions::from_mode(0o600);
+    if let Err(e) = fs::set_permissions(path, perms) {
+        eprintln!("warning: failed to set permissions on {}: {e}", path.display());
     }
+}
 
-    let metadata = fs::metadata(path)?;
-    let mode = metadata.permissions().mode();
-
-    // Check that group and other have no access (last 6 bits should be 0)
-    if mode & 0o077 != 0 {
-        return Err(CliError::InvalidArgs(format!(
-            "vault directory {} has insecure permissions {:o} — expected 700. \
-             Fix with: chmod 700 {}",
-            path.display(),
-            mode & 0o777,
-            path.display(),
-        )));
+/// Warn if a directory has permissions more open than 0o700.
+#[cfg(unix)]
+pub fn check_vault_permissions(path: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if let Ok(meta) = fs::metadata(path) {
+        let mode = meta.permissions().mode() & 0o777;
+        if mode != 0o700 {
+            eprintln!(
+                "warning: {} has permissions {:04o}, expected 0700",
+                path.display(),
+                mode
+            );
+        }
     }
-
-    Ok(())
 }
 
 #[cfg(not(unix))]
-pub fn verify_permissions(_path: &std::path::Path) -> Result<(), CliError> {
-    Ok(())
+fn set_dir_permissions(_path: &std::path::Path) {}
+
+#[cfg(not(unix))]
+fn set_file_permissions(_path: &std::path::Path) {}
+
+#[cfg(not(unix))]
+pub fn check_vault_permissions(_path: &std::path::Path) {}
+
+/// Returns the wallets directory, creating it with strict permissions if necessary.
+pub fn wallets_dir() -> Result<PathBuf, CliError> {
+    let config = Config::default();
+    let lws_dir = &config.vault_path;
+    let dir = lws_dir.join("wallets");
+    fs::create_dir_all(&dir)?;
+    set_dir_permissions(lws_dir);
+    set_dir_permissions(&dir);
+    Ok(dir)
 }
 
 /// Save an encrypted wallet file with strict permissions.
@@ -62,26 +66,16 @@ pub fn save_encrypted_wallet(wallet: &EncryptedWallet) -> Result<(), CliError> {
     let path = dir.join(format!("{}.json", wallet.id));
     let json = serde_json::to_string_pretty(wallet)?;
     fs::write(&path, json)?;
-
-    // Set file permissions to 600 (owner read/write only)
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
-    }
-
+    set_file_permissions(&path);
     Ok(())
 }
 
 /// Load all encrypted wallets from the vault.
-/// Verifies directory permissions first.
+/// Checks directory permissions and warns if insecure.
 /// Returns wallets sorted by created_at descending (newest first).
 pub fn list_encrypted_wallets() -> Result<Vec<EncryptedWallet>, CliError> {
     let dir = wallets_dir()?;
-
-    // Verify permissions before reading
-    let config = Config::default();
-    verify_permissions(&config.vault_path)?;
+    check_vault_permissions(&dir);
 
     let mut wallets = Vec::new();
 

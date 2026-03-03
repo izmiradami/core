@@ -24,7 +24,7 @@ enum Commands {
         #[arg(long, default_value = "12")]
         words: u32,
     },
-    /// Derive an address from a mnemonic (reads mnemonic from stdin)
+    /// Derive an address from a mnemonic (reads from LWS_MNEMONIC env or stdin)
     Derive {
         /// Chain type (evm, solana, bitcoin, cosmos, tron)
         #[arg(long)]
@@ -33,7 +33,7 @@ enum Commands {
         #[arg(long, default_value = "0")]
         index: u32,
     },
-    /// Sign a message with a mnemonic-derived key (reads mnemonic from stdin)
+    /// Sign a message with a mnemonic-derived key (reads from LWS_MNEMONIC env or stdin)
     Sign {
         /// Chain type (evm, solana, bitcoin, cosmos, tron)
         #[arg(long)]
@@ -103,42 +103,38 @@ fn parse_chain(s: &str) -> Result<ChainType, CliError> {
         .map_err(|e| CliError::InvalidArgs(e))
 }
 
-/// Read a mnemonic phrase from stdin (one line).
-fn read_mnemonic_stdin() -> Result<String, CliError> {
-    let mut line = String::new();
-    std::io::Read::read_to_string(&mut std::io::stdin(), &mut line)?;
-    let trimmed = line.trim().to_string();
-    if trimmed.is_empty() {
-        return Err(CliError::InvalidArgs(
-            "no mnemonic provided on stdin — pipe it in: echo \"word1 word2 ...\" | lws derive ...".into(),
-        ));
-    }
-    Ok(trimmed)
-}
-
 fn main() {
+    lws_signer::process_hardening::harden_process();
+
+    // Eagerly initialize the global key cache and register it for zeroization
+    // on termination signals (SIGTERM, SIGINT, SIGHUP).
+    let cache = lws_signer::global_key_cache();
+    lws_signer::process_hardening::register_cleanup(move || cache.clear());
+    lws_signer::process_hardening::install_signal_handlers();
+
     let cli = Cli::parse();
-    if let Err(e) = run(cli) {
-        eprintln!("error: {e}");
-        std::process::exit(1);
-    }
+    let code = match run(cli) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("error: {e}");
+            1
+        }
+    };
+
+    // Explicitly zeroize all cached key material before exiting.
+    lws_signer::global_key_cache().clear();
+    std::process::exit(code);
 }
 
 fn run(cli: Cli) -> Result<(), CliError> {
     match cli.command {
         Commands::Generate { words } => commands::generate::run(words),
-        Commands::Derive { chain, index } => {
-            let mnemonic = read_mnemonic_stdin()?;
-            commands::derive::run(&mnemonic, &chain, index)
-        }
+        Commands::Derive { chain, index } => commands::derive::run(&chain, index),
         Commands::Sign {
             chain,
             message,
             index,
-        } => {
-            let mnemonic = read_mnemonic_stdin()?;
-            commands::sign::run(&mnemonic, &chain, &message, index)
-        }
+        } => commands::sign::run(&chain, &message, index),
         Commands::Info => commands::info::run(),
         Commands::CreateWallet {
             name,
