@@ -10,7 +10,7 @@ use lws_signer::{CryptoError, SignerError};
 
 /// Lightweight Wallet Signer CLI
 #[derive(Parser)]
-#[command(name = "lws", version, about, long_version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("LWS_GIT_COMMIT"), ")"))]
+#[command(name = "lws", version = env!("LWS_VERSION"), about, long_version = concat!(env!("LWS_VERSION"), " (", env!("LWS_GIT_COMMIT"), ")"))]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
