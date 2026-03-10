@@ -683,16 +683,18 @@ mod tests {
         vault: &Path,
     ) -> WalletInfo {
         let key_bytes = hex::decode(privkey_hex).unwrap();
-        let signer = signer_for_chain(ChainType::Evm);
-        let address = signer.derive_address(&key_bytes).unwrap();
-        let chain = default_chain_for_type(ChainType::Evm);
-        let accounts = vec![WalletAccount {
-            account_id: format!("{}:{}", chain.chain_id, address),
-            address,
-            chain_id: chain.chain_id.to_string(),
-            derivation_path: String::new(),
-        }];
-        let crypto_envelope = encrypt(&key_bytes, passphrase).unwrap();
+
+        // Generate a random ed25519 key for the other curve
+        let mut ed_key = vec![0u8; 32];
+        getrandom::getrandom(&mut ed_key).unwrap();
+
+        let keys = KeyPair {
+            secp256k1: key_bytes,
+            ed25519: ed_key,
+        };
+        let accounts = derive_all_accounts_from_keys(&keys).unwrap();
+        let payload = keys.to_json_bytes();
+        let crypto_envelope = encrypt(&payload, passphrase).unwrap();
         let crypto_json = serde_json::to_value(&crypto_envelope).unwrap();
         let wallet = EncryptedWallet::new(
             uuid::Uuid::new_v4().to_string(),
@@ -892,12 +894,15 @@ mod tests {
     }
 
     #[test]
-    fn privkey_wallet_export_returns_hex() {
+    fn privkey_wallet_export_returns_json() {
         let dir = tempfile::tempdir().unwrap();
         save_privkey_wallet("pk-export", TEST_PRIVKEY, "", dir.path());
 
         let exported = export_wallet("pk-export", None, Some(dir.path())).unwrap();
-        assert_eq!(exported, TEST_PRIVKEY, "exported key should match original");
+        let obj: serde_json::Value = serde_json::from_str(&exported).unwrap();
+        assert_eq!(obj["secp256k1"].as_str().unwrap(), TEST_PRIVKEY,
+            "exported secp256k1 key should match original");
+        assert!(obj["ed25519"].as_str().is_some(), "should have ed25519 key");
     }
 
     #[test]
@@ -936,9 +941,10 @@ mod tests {
         let sig = sign_message("pk-api", "evm", "hello", None, None, None, Some(vault)).unwrap();
         assert!(!sig.signature.is_empty());
 
-        // Export should return hex key
+        // Export should return JSON key pair with original key
         let exported = export_wallet("pk-api", None, Some(vault)).unwrap();
-        assert_eq!(exported, TEST_PRIVKEY);
+        let obj: serde_json::Value = serde_json::from_str(&exported).unwrap();
+        assert_eq!(obj["secp256k1"].as_str().unwrap(), TEST_PRIVKEY);
     }
 
     // ================================================================
@@ -978,7 +984,8 @@ mod tests {
         assert!(!sig.signature.is_empty());
 
         let exported = export_wallet("pass-pk", Some("mypass"), Some(dir.path())).unwrap();
-        assert_eq!(exported, TEST_PRIVKEY);
+        let obj: serde_json::Value = serde_json::from_str(&exported).unwrap();
+        assert_eq!(obj["secp256k1"].as_str().unwrap(), TEST_PRIVKEY);
 
         // Wrong passphrase
         assert!(sign_message("pass-pk", "evm", "hello", Some("wrong"), None, None, Some(dir.path())).is_err());

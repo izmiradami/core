@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -27,5 +29,46 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('lws/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
       - name: Run tests
         run: cargo test --workspace
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/node
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Rust toolchain
+        run: rustup update stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            bindings/node/target
+          key: ${{ runner.os }}-node-cargo-${{ hashFiles('bindings/node/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-node-cargo-
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build native addon
+        run: npx napi build --platform --release
+
+      - name: Run tests
+        run: npm test
