@@ -102,14 +102,25 @@ mod tests {
     fn test_v2_no_chain_type_field() {
         let wallet = dummy_wallet();
         let json = serde_json::to_value(&wallet).unwrap();
-        assert!(json.get("chain_type").is_none(), "v2 wallets should not serialize chain_type");
+        assert!(
+            json.get("chain_type").is_none(),
+            "v2 wallets should not serialize chain_type"
+        );
     }
 
     #[test]
     fn test_matches_spec_format() {
         let wallet = dummy_wallet();
         let json = serde_json::to_value(&wallet).unwrap();
-        for key in ["lws_version", "id", "name", "created_at", "accounts", "crypto", "key_type"] {
+        for key in [
+            "lws_version",
+            "id",
+            "name",
+            "created_at",
+            "accounts",
+            "crypto",
+            "key_type",
+        ] {
             assert!(json.get(key).is_some(), "missing key: {key}");
         }
     }

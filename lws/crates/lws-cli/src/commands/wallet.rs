@@ -1,8 +1,6 @@
 use std::io::IsTerminal;
 
-use lws_core::{
-    default_chain_for_type, EncryptedWallet, KeyType, WalletAccount, ALL_CHAIN_TYPES,
-};
+use lws_core::{default_chain_for_type, EncryptedWallet, KeyType, WalletAccount, ALL_CHAIN_TYPES};
 use lws_signer::{
     decrypt, encrypt, signer_for_chain, CryptoEnvelope, HdDeriver, Mnemonic, MnemonicStrength,
 };
@@ -98,8 +96,7 @@ pub fn import(
         // Determine curve from source chain (default: secp256k1)
         let source_curve = match chain {
             Some(c) => {
-                let parsed = lws_core::parse_chain(c)
-                    .map_err(|e| CliError::InvalidArgs(e))?;
+                let parsed = lws_core::parse_chain(c).map_err(|e| CliError::InvalidArgs(e))?;
                 signer_for_chain(parsed.chain_type).curve()
             }
             None => lws_signer::Curve::Secp256k1,
@@ -115,7 +112,9 @@ pub fn import(
         let payload = serde_json::json!({
             "secp256k1": hex::encode(&keys.0),
             "ed25519": hex::encode(&keys.1),
-        }).to_string().into_bytes();
+        })
+        .to_string()
+        .into_bytes();
         let accts = derive_all_accounts_from_keys(&keys.0, &keys.1)?;
         (accts, payload, KeyType::PrivateKey)
     };

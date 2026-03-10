@@ -219,16 +219,14 @@ mod tests {
     #[test]
     fn test_derive_cosmos_account_0() {
         let seed = test_seed();
-        let key =
-            HdDeriver::derive(seed.expose(), "m/44'/118'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key = HdDeriver::derive(seed.expose(), "m/44'/118'/0'/0/0", Curve::Secp256k1).unwrap();
         assert_eq!(key.len(), 32);
     }
 
     #[test]
     fn test_derive_tron_account_0() {
         let seed = test_seed();
-        let key =
-            HdDeriver::derive(seed.expose(), "m/44'/195'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key = HdDeriver::derive(seed.expose(), "m/44'/195'/0'/0/0", Curve::Secp256k1).unwrap();
         assert_eq!(key.len(), 32);
     }
 
@@ -237,8 +235,7 @@ mod tests {
         let mnemonic = Mnemonic::from_phrase(ABANDON_PHRASE).unwrap();
         let seed = mnemonic.to_seed("");
 
-        let key1 =
-            HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key1 = HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
         let key2 =
             HdDeriver::derive_from_mnemonic(&mnemonic, "", "m/44'/60'/0'/0/0", Curve::Secp256k1)
                 .unwrap();
@@ -274,20 +271,16 @@ mod tests {
     #[test]
     fn test_deterministic() {
         let seed = test_seed();
-        let key1 =
-            HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
-        let key2 =
-            HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key1 = HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key2 = HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
         assert_eq!(key1.expose(), key2.expose());
     }
 
     #[test]
     fn test_different_indices_different_keys() {
         let seed = test_seed();
-        let key0 =
-            HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
-        let key1 =
-            HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/1", Curve::Secp256k1).unwrap();
+        let key0 = HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/0", Curve::Secp256k1).unwrap();
+        let key1 = HdDeriver::derive(seed.expose(), "m/44'/60'/0'/0/1", Curve::Secp256k1).unwrap();
         assert_ne!(key0.expose(), key1.expose());
     }
 }

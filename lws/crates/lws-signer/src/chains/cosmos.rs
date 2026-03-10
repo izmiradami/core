@@ -32,7 +32,6 @@ impl CosmosSigner {
         let ripemd = Ripemd160::digest(sha256);
         ripemd.to_vec()
     }
-
 }
 
 impl ChainSigner for CosmosSigner {

@@ -36,10 +36,7 @@ mod integration_tests {
 
     const ABANDON_PHRASE: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-    fn derive_address_for_chain(
-        mnemonic: &Mnemonic,
-        chain: ChainType,
-    ) -> String {
+    fn derive_address_for_chain(mnemonic: &Mnemonic, chain: ChainType) -> String {
         let signer = signer_for_chain(chain);
         let curve = signer.curve();
         let path = signer.default_derivation_path(0);
@@ -92,7 +89,11 @@ mod integration_tests {
     fn test_full_pipeline_ton() {
         let mnemonic = Mnemonic::from_phrase(ABANDON_PHRASE).unwrap();
         let address = derive_address_for_chain(&mnemonic, ChainType::Ton);
-        assert!(address.starts_with("EQ"), "TON bounceable address should start with EQ, got: {}", address);
+        assert!(
+            address.starts_with("EQ"),
+            "TON bounceable address should start with EQ, got: {}",
+            address
+        );
         assert_eq!(address.len(), 48);
     }
 
@@ -108,7 +109,14 @@ mod integration_tests {
         let ton_addr = derive_address_for_chain(&mnemonic, ChainType::Ton);
 
         // All addresses should be different
-        let addrs = vec![&evm_addr, &sol_addr, &btc_addr, &cosmos_addr, &tron_addr, &ton_addr];
+        let addrs = vec![
+            &evm_addr,
+            &sol_addr,
+            &btc_addr,
+            &cosmos_addr,
+            &tron_addr,
+            &ton_addr,
+        ];
         for i in 0..addrs.len() {
             for j in (i + 1)..addrs.len() {
                 assert_ne!(addrs[i], addrs[j], "addresses should differ");
@@ -128,7 +136,12 @@ mod integration_tests {
     fn test_sign_roundtrip_all_secp256k1_chains() {
         let mnemonic = Mnemonic::from_phrase(ABANDON_PHRASE).unwrap();
 
-        for chain in [ChainType::Evm, ChainType::Bitcoin, ChainType::Cosmos, ChainType::Tron] {
+        for chain in [
+            ChainType::Evm,
+            ChainType::Bitcoin,
+            ChainType::Cosmos,
+            ChainType::Tron,
+        ] {
             let signer = signer_for_chain(chain);
             let path = signer.default_derivation_path(0);
             let key =

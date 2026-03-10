@@ -8,7 +8,10 @@ pub fn run(purge: bool) -> Result<(), crate::CliError> {
     let vault_path = vault_path();
 
     if !binary.exists() && !purge {
-        println!("lws binary not found at {} — already uninstalled?", binary.display());
+        println!(
+            "lws binary not found at {} — already uninstalled?",
+            binary.display()
+        );
         return Ok(());
     }
 
@@ -55,8 +58,9 @@ pub fn run(purge: bool) -> Result<(), crate::CliError> {
 
     // Purge vault data
     if purge && vault_path.exists() {
-        std::fs::remove_dir_all(&vault_path)
-            .map_err(|e| crate::CliError::InvalidArgs(format!("failed to remove vault data: {e}")))?;
+        std::fs::remove_dir_all(&vault_path).map_err(|e| {
+            crate::CliError::InvalidArgs(format!("failed to remove vault data: {e}"))
+        })?;
         println!("Removed {}", vault_path.display());
     }
 
@@ -70,7 +74,10 @@ pub fn run(purge: bool) -> Result<(), crate::CliError> {
     println!();
     println!("lws has been uninstalled.");
     if !purge {
-        println!("Wallet data remains at {}. Use --purge to remove it.", vault_path.display());
+        println!(
+            "Wallet data remains at {}. Use --purge to remove it.",
+            vault_path.display()
+        );
     }
 
     Ok(())

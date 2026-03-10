@@ -97,8 +97,8 @@ pub fn encrypt(plaintext: &[u8], passphrase: &str) -> Result<CryptoEnvelope, Cry
 /// Decrypt a CryptoEnvelope using a passphrase.
 /// Returns the decrypted plaintext as SecretBytes (zeroized on drop).
 pub fn decrypt(envelope: &CryptoEnvelope, passphrase: &str) -> Result<SecretBytes, CryptoError> {
-    let salt =
-        hex::decode(&envelope.kdfparams.salt).map_err(|e| CryptoError::InvalidParams(e.to_string()))?;
+    let salt = hex::decode(&envelope.kdfparams.salt)
+        .map_err(|e| CryptoError::InvalidParams(e.to_string()))?;
     let iv = hex::decode(&envelope.cipherparams.iv)
         .map_err(|e| CryptoError::InvalidParams(e.to_string()))?;
     let ciphertext =

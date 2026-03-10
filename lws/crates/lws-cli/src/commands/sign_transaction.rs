@@ -57,7 +57,8 @@ fn extract_key_for_curve(
         lws_signer::Curve::Secp256k1 => "secp256k1",
         lws_signer::Curve::Ed25519 => "ed25519",
     };
-    let hex_key = obj[field].as_str()
+    let hex_key = obj[field]
+        .as_str()
         .ok_or_else(|| CliError::InvalidArgs(format!("missing {field} key in wallet")))?;
     let bytes = hex::decode(hex_key)
         .map_err(|e| CliError::InvalidArgs(format!("invalid {field} hex: {e}")))?;

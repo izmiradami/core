@@ -6,7 +6,9 @@ pub mod types;
 pub mod wallet_file;
 
 pub use caip::ChainId;
-pub use chain::{parse_chain, default_chain_for_type, Chain, ChainType, ALL_CHAIN_TYPES, KNOWN_CHAINS};
+pub use chain::{
+    default_chain_for_type, parse_chain, Chain, ChainType, ALL_CHAIN_TYPES, KNOWN_CHAINS,
+};
 pub use config::Config;
 pub use error::{LwsError, LwsErrorCode};
 pub use types::*;

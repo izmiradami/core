@@ -37,10 +37,7 @@ fn parse_chain(s: &str) -> Result<lws_core::Chain, LwsLibError> {
 }
 
 /// Derive accounts for all chain families from a mnemonic at the given index.
-fn derive_all_accounts(
-    mnemonic: &Mnemonic,
-    index: u32,
-) -> Result<Vec<WalletAccount>, LwsLibError> {
+fn derive_all_accounts(mnemonic: &Mnemonic, index: u32) -> Result<Vec<WalletAccount>, LwsLibError> {
     let mut accounts = Vec::with_capacity(ALL_CHAIN_TYPES.len());
     for ct in &ALL_CHAIN_TYPES {
         let chain = default_chain_for_type(*ct);
@@ -89,9 +86,11 @@ impl KeyPair {
         let s = String::from_utf8(bytes.to_vec())
             .map_err(|_| LwsLibError::InvalidInput("invalid key pair data".into()))?;
         let obj: serde_json::Value = serde_json::from_str(&s)?;
-        let secp = obj["secp256k1"].as_str()
+        let secp = obj["secp256k1"]
+            .as_str()
             .ok_or_else(|| LwsLibError::InvalidInput("missing secp256k1 key".into()))?;
-        let ed = obj["ed25519"].as_str()
+        let ed = obj["ed25519"]
+            .as_str()
             .ok_or_else(|| LwsLibError::InvalidInput("missing ed25519 key".into()))?;
         Ok(KeyPair {
             secp256k1: hex::decode(secp)
@@ -244,7 +243,9 @@ pub fn import_wallet_private_key(
         return Err(LwsLibError::WalletNameExists(name.to_string()));
     }
 
-    let hex_trimmed = private_key_hex.strip_prefix("0x").unwrap_or(private_key_hex);
+    let hex_trimmed = private_key_hex
+        .strip_prefix("0x")
+        .unwrap_or(private_key_hex);
     let key_bytes = hex::decode(hex_trimmed)
         .map_err(|e| LwsLibError::InvalidInput(format!("invalid hex private key: {e}")))?;
 
@@ -300,19 +301,13 @@ pub fn list_wallets(vault_path: Option<&Path>) -> Result<Vec<WalletInfo>, LwsLib
 }
 
 /// Get a single wallet by name or ID.
-pub fn get_wallet(
-    name_or_id: &str,
-    vault_path: Option<&Path>,
-) -> Result<WalletInfo, LwsLibError> {
+pub fn get_wallet(name_or_id: &str, vault_path: Option<&Path>) -> Result<WalletInfo, LwsLibError> {
     let wallet = vault::load_wallet_by_name_or_id(name_or_id, vault_path)?;
     Ok(wallet_to_info(&wallet))
 }
 
 /// Delete a wallet from the vault.
-pub fn delete_wallet(
-    name_or_id: &str,
-    vault_path: Option<&Path>,
-) -> Result<(), LwsLibError> {
+pub fn delete_wallet(name_or_id: &str, vault_path: Option<&Path>) -> Result<(), LwsLibError> {
     let wallet = vault::load_wallet_by_name_or_id(name_or_id, vault_path)?;
     vault::delete_wallet_file(&wallet.id, vault_path)?;
     Ok(())
@@ -331,8 +326,9 @@ pub fn export_wallet(
     let secret = decrypt(&envelope, passphrase)?;
 
     match wallet.key_type {
-        KeyType::Mnemonic => String::from_utf8(secret.expose().to_vec())
-            .map_err(|_| LwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into())),
+        KeyType::Mnemonic => String::from_utf8(secret.expose().to_vec()).map_err(|_| {
+            LwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into())
+        }),
         KeyType::PrivateKey => {
             // Return the JSON key pair as-is
             String::from_utf8(secret.expose().to_vec())
@@ -470,13 +466,16 @@ fn decrypt_signing_key(
 
     match wallet.key_type {
         KeyType::Mnemonic => {
-            let phrase = String::from_utf8(secret.expose().to_vec())
-                .map_err(|_| LwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into()))?;
+            let phrase = String::from_utf8(secret.expose().to_vec()).map_err(|_| {
+                LwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into())
+            })?;
             let mnemonic = Mnemonic::from_phrase(&phrase)?;
             let signer = signer_for_chain(chain_type);
             let path = signer.default_derivation_path(index.unwrap_or(0));
             let curve = signer.curve();
-            Ok(HdDeriver::derive_from_mnemonic(&mnemonic, "", &path, curve)?)
+            Ok(HdDeriver::derive_from_mnemonic(
+                &mnemonic, "", &path, curve,
+            )?)
         }
         KeyType::PrivateKey => {
             // JSON key pair — extract the right key for this chain's curve
@@ -569,9 +568,12 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLi
     let output = Command::new("curl")
         .args([
             "-fsSL",
-            "-X", "POST",
-            "-H", "Content-Type: text/plain",
-            "-d", &hex_tx,
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: text/plain",
+            "-d",
+            &hex_tx,
             &url,
         ])
         .output()
@@ -579,12 +581,16 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLi
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(LwsLibError::BroadcastFailed(format!("broadcast failed: {stderr}")));
+        return Err(LwsLibError::BroadcastFailed(format!(
+            "broadcast failed: {stderr}"
+        )));
     }
 
     let tx_hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if tx_hash.is_empty() {
-        return Err(LwsLibError::BroadcastFailed("empty response from broadcast".into()));
+        return Err(LwsLibError::BroadcastFailed(
+            "empty response from broadcast".into(),
+        ));
     }
     Ok(tx_hash)
 }
@@ -592,10 +598,7 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLi
 fn broadcast_cosmos(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLibError> {
     use base64::Engine;
     let b64_tx = base64::engine::general_purpose::STANDARD.encode(signed_bytes);
-    let url = format!(
-        "{}/cosmos/tx/v1beta1/txs",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/cosmos/tx/v1beta1/txs", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({
         "tx_bytes": b64_tx,
         "mode": "BROADCAST_MODE_SYNC"
@@ -610,10 +613,7 @@ fn broadcast_cosmos(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLib
 
 fn broadcast_tron(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLibError> {
     let hex_tx = hex::encode(signed_bytes);
-    let url = format!(
-        "{}/wallet/broadcasthex",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/wallet/broadcasthex", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({ "transaction": hex_tx });
     let resp = curl_post_json(&url, &body.to_string())?;
     extract_json_field(&resp, "txid")
@@ -622,10 +622,7 @@ fn broadcast_tron(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLibEr
 fn broadcast_ton(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, LwsLibError> {
     use base64::Engine;
     let b64_boc = base64::engine::general_purpose::STANDARD.encode(signed_bytes);
-    let url = format!(
-        "{}/sendBoc",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/sendBoc", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({ "boc": b64_boc });
     let resp = curl_post_json(&url, &body.to_string())?;
     let parsed: serde_json::Value = serde_json::from_str(&resp)?;
@@ -639,9 +636,12 @@ fn curl_post_json(url: &str, body: &str) -> Result<String, LwsLibError> {
     let output = Command::new("curl")
         .args([
             "-fsSL",
-            "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-d", body,
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            body,
             url,
         ])
         .output()
@@ -649,7 +649,9 @@ fn curl_post_json(url: &str, body: &str) -> Result<String, LwsLibError> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(LwsLibError::BroadcastFailed(format!("broadcast failed: {stderr}")));
+        return Err(LwsLibError::BroadcastFailed(format!(
+            "broadcast failed: {stderr}"
+        )));
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -665,7 +667,9 @@ fn extract_json_field(json_str: &str, field: &str) -> Result<String, LwsLibError
     parsed[field]
         .as_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| LwsLibError::BroadcastFailed(format!("no '{field}' in response: {json_str}")))
+        .ok_or_else(|| {
+            LwsLibError::BroadcastFailed(format!("no '{field}' in response: {json_str}"))
+        })
 }
 
 #[cfg(test)]
@@ -707,8 +711,7 @@ mod tests {
         wallet_to_info(&wallet)
     }
 
-    const TEST_PRIVKEY: &str =
-        "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
+    const TEST_PRIVKEY: &str = "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
 
     // ================================================================
     // 1. MNEMONIC GENERATION
@@ -813,8 +816,11 @@ mod tests {
         assert_eq!(w1.accounts.len(), w2.accounts.len());
         for (a1, a2) in w1.accounts.iter().zip(w2.accounts.iter()) {
             assert_eq!(a1.chain_id, a2.chain_id);
-            assert_eq!(a1.address, a2.address,
-                "address mismatch for {}", a1.chain_id);
+            assert_eq!(
+                a1.address, a2.address,
+                "address mismatch for {}",
+                a1.chain_id
+            );
         }
     }
 
@@ -826,10 +832,25 @@ mod tests {
 
         let chains = ["evm", "solana", "bitcoin", "cosmos", "tron", "ton"];
         for chain in &chains {
-            let result = sign_message("multi-sign", chain, "test msg", None, None, None, Some(vault));
-            assert!(result.is_ok(), "sign_message should work for {chain}: {:?}", result.err());
+            let result = sign_message(
+                "multi-sign",
+                chain,
+                "test msg",
+                None,
+                None,
+                None,
+                Some(vault),
+            );
+            assert!(
+                result.is_ok(),
+                "sign_message should work for {chain}: {:?}",
+                result.err()
+            );
             let sig = result.unwrap();
-            assert!(!sig.signature.is_empty(), "signature should be non-empty for {chain}");
+            assert!(
+                !sig.signature.is_empty(),
+                "signature should be non-empty for {chain}"
+            );
         }
     }
 
@@ -843,7 +864,11 @@ mod tests {
         let chains = ["evm", "solana", "bitcoin", "cosmos", "tron", "ton"];
         for chain in &chains {
             let result = sign_transaction("tx-sign", chain, tx_hex, None, None, Some(vault));
-            assert!(result.is_ok(), "sign_transaction should work for {chain}: {:?}", result.err());
+            assert!(
+                result.is_ok(),
+                "sign_transaction should work for {chain}: {:?}",
+                result.err()
+            );
         }
     }
 
@@ -855,7 +880,10 @@ mod tests {
 
         let s1 = sign_message("det-sign", "evm", "hello", None, None, None, Some(vault)).unwrap();
         let s2 = sign_message("det-sign", "evm", "hello", None, None, None, Some(vault)).unwrap();
-        assert_eq!(s1.signature, s2.signature, "same message should produce same signature");
+        assert_eq!(
+            s1.signature, s2.signature,
+            "same message should produce same signature"
+        );
     }
 
     #[test]
@@ -878,7 +906,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         save_privkey_wallet("pk-sign", TEST_PRIVKEY, "", dir.path());
 
-        let sig = sign_message("pk-sign", "evm", "hello", None, None, None, Some(dir.path())).unwrap();
+        let sig = sign_message(
+            "pk-sign",
+            "evm",
+            "hello",
+            None,
+            None,
+            None,
+            Some(dir.path()),
+        )
+        .unwrap();
         assert!(!sig.signature.is_empty());
         assert!(sig.recovery_id.is_some());
     }
@@ -900,8 +937,11 @@ mod tests {
 
         let exported = export_wallet("pk-export", None, Some(dir.path())).unwrap();
         let obj: serde_json::Value = serde_json::from_str(&exported).unwrap();
-        assert_eq!(obj["secp256k1"].as_str().unwrap(), TEST_PRIVKEY,
-            "exported secp256k1 key should match original");
+        assert_eq!(
+            obj["secp256k1"].as_str().unwrap(),
+            TEST_PRIVKEY,
+            "exported secp256k1 key should match original"
+        );
         assert!(obj["ed25519"].as_str().is_some(), "should have ed25519 key");
     }
 
@@ -925,8 +965,10 @@ mod tests {
 
         let mn_sig = sign_message("mn-w", "evm", "hello", None, None, None, Some(vault)).unwrap();
         let pk_sig = sign_message("pk-w", "evm", "hello", None, None, None, Some(vault)).unwrap();
-        assert_ne!(mn_sig.signature, pk_sig.signature,
-            "different keys should produce different signatures");
+        assert_ne!(
+            mn_sig.signature, pk_sig.signature,
+            "different keys should produce different signatures"
+        );
     }
 
     #[test]
@@ -934,8 +976,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vault = dir.path();
 
-        let info = import_wallet_private_key("pk-api", TEST_PRIVKEY, Some("evm"), None, Some(vault)).unwrap();
-        assert!(!info.accounts.is_empty(), "should derive at least one account");
+        let info =
+            import_wallet_private_key("pk-api", TEST_PRIVKEY, Some("evm"), None, Some(vault))
+                .unwrap();
+        assert!(
+            !info.accounts.is_empty(),
+            "should derive at least one account"
+        );
 
         // Should be able to sign
         let sig = sign_message("pk-api", "evm", "hello", None, None, None, Some(vault)).unwrap();
@@ -959,7 +1006,16 @@ mod tests {
         create_wallet("pass-mn", None, Some("s3cret"), Some(vault)).unwrap();
 
         // Sign with correct passphrase
-        let sig = sign_message("pass-mn", "evm", "hello", Some("s3cret"), None, None, Some(vault)).unwrap();
+        let sig = sign_message(
+            "pass-mn",
+            "evm",
+            "hello",
+            Some("s3cret"),
+            None,
+            None,
+            Some(vault),
+        )
+        .unwrap();
         assert!(!sig.signature.is_empty());
 
         // Export with correct passphrase
@@ -967,7 +1023,16 @@ mod tests {
         assert_eq!(phrase.split_whitespace().count(), 12);
 
         // Wrong passphrase should fail
-        assert!(sign_message("pass-mn", "evm", "hello", Some("wrong"), None, None, Some(vault)).is_err());
+        assert!(sign_message(
+            "pass-mn",
+            "evm",
+            "hello",
+            Some("wrong"),
+            None,
+            None,
+            Some(vault)
+        )
+        .is_err());
         assert!(export_wallet("pass-mn", Some("wrong"), Some(vault)).is_err());
 
         // No passphrase should fail (defaults to empty string, which is wrong)
@@ -980,7 +1045,16 @@ mod tests {
         save_privkey_wallet("pass-pk", TEST_PRIVKEY, "mypass", dir.path());
 
         // Correct passphrase
-        let sig = sign_message("pass-pk", "evm", "hello", Some("mypass"), None, None, Some(dir.path())).unwrap();
+        let sig = sign_message(
+            "pass-pk",
+            "evm",
+            "hello",
+            Some("mypass"),
+            None,
+            None,
+            Some(dir.path()),
+        )
+        .unwrap();
         assert!(!sig.signature.is_empty());
 
         let exported = export_wallet("pass-pk", Some("mypass"), Some(dir.path())).unwrap();
@@ -988,7 +1062,16 @@ mod tests {
         assert_eq!(obj["secp256k1"].as_str().unwrap(), TEST_PRIVKEY);
 
         // Wrong passphrase
-        assert!(sign_message("pass-pk", "evm", "hello", Some("wrong"), None, None, Some(dir.path())).is_err());
+        assert!(sign_message(
+            "pass-pk",
+            "evm",
+            "hello",
+            Some("wrong"),
+            None,
+            None,
+            Some(dir.path())
+        )
+        .is_err());
         assert!(export_wallet("pass-pk", Some("wrong"), Some(dir.path())).is_err());
     }
 
@@ -1003,13 +1086,24 @@ mod tests {
         let vault = dir.path();
 
         let info = create_wallet("verify-evm", None, None, Some(vault)).unwrap();
-        let evm_addr = info.accounts.iter()
+        let evm_addr = info
+            .accounts
+            .iter()
             .find(|a| a.chain_id.starts_with("eip155:"))
             .unwrap()
             .address
             .clone();
 
-        let sig = sign_message("verify-evm", "evm", "hello world", None, None, None, Some(vault)).unwrap();
+        let sig = sign_message(
+            "verify-evm",
+            "evm",
+            "hello world",
+            None,
+            None,
+            None,
+            Some(vault),
+        )
+        .unwrap();
 
         // EVM personal_sign: keccak256("\x19Ethereum Signed Message:\n" + len + msg)
         let msg = b"hello world";
@@ -1019,14 +1113,17 @@ mod tests {
 
         let hash = sha3::Keccak256::digest(&prefixed);
         let sig_bytes = hex::decode(&sig.signature).unwrap();
-        assert_eq!(sig_bytes.len(), 65, "EVM signature should be 65 bytes (r + s + v)");
+        assert_eq!(
+            sig_bytes.len(),
+            65,
+            "EVM signature should be 65 bytes (r + s + v)"
+        );
 
         // Recover public key from signature
         let recid = k256::ecdsa::RecoveryId::try_from(sig_bytes[64]).unwrap();
         let ecdsa_sig = k256::ecdsa::Signature::from_slice(&sig_bytes[..64]).unwrap();
-        let recovered_key = k256::ecdsa::VerifyingKey::recover_from_prehash(
-            &hash, &ecdsa_sig, recid
-        ).unwrap();
+        let recovered_key =
+            k256::ecdsa::VerifyingKey::recover_from_prehash(&hash, &ecdsa_sig, recid).unwrap();
 
         // Derive address from recovered key and compare
         let pubkey_bytes = recovered_key.to_encoded_point(false);
@@ -1065,7 +1162,10 @@ mod tests {
     #[test]
     fn error_invalid_private_key_hex() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(import_wallet_private_key("bad", "not-hex", Some("evm"), None, Some(dir.path())).is_err());
+        assert!(
+            import_wallet_private_key("bad", "not-hex", Some("evm"), None, Some(dir.path()))
+                .is_err()
+        );
     }
 
     #[test]
@@ -1073,7 +1173,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vault = dir.path();
         create_wallet("chain-err", None, None, Some(vault)).unwrap();
-        assert!(sign_message("chain-err", "fakecoin", "hi", None, None, None, Some(vault)).is_err());
+        assert!(
+            sign_message("chain-err", "fakecoin", "hi", None, None, None, Some(vault)).is_err()
+        );
     }
 
     #[test]
@@ -1081,7 +1183,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vault = dir.path();
         create_wallet("hex-err", None, None, Some(vault)).unwrap();
-        assert!(sign_transaction("hex-err", "evm", "not-valid-hex!", None, None, Some(vault)).is_err());
+        assert!(
+            sign_transaction("hex-err", "evm", "not-valid-hex!", None, None, Some(vault)).is_err()
+        );
     }
 
     // ================================================================
@@ -1152,13 +1256,33 @@ mod tests {
         create_wallet("hex-enc", None, None, Some(vault)).unwrap();
 
         // "hello" in hex
-        let sig = sign_message("hex-enc", "evm", "68656c6c6f", None, Some("hex"), None, Some(vault)).unwrap();
+        let sig = sign_message(
+            "hex-enc",
+            "evm",
+            "68656c6c6f",
+            None,
+            Some("hex"),
+            None,
+            Some(vault),
+        )
+        .unwrap();
         assert!(!sig.signature.is_empty());
 
         // Should match utf8 encoding of the same bytes
-        let sig2 = sign_message("hex-enc", "evm", "hello", None, Some("utf8"), None, Some(vault)).unwrap();
-        assert_eq!(sig.signature, sig2.signature,
-            "hex and utf8 encoding of same bytes should produce same signature");
+        let sig2 = sign_message(
+            "hex-enc",
+            "evm",
+            "hello",
+            None,
+            Some("utf8"),
+            None,
+            Some(vault),
+        )
+        .unwrap();
+        assert_eq!(
+            sig.signature, sig2.signature,
+            "hex and utf8 encoding of same bytes should produce same signature"
+        );
     }
 
     #[test]
@@ -1166,7 +1290,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vault = dir.path();
         create_wallet("bad-enc", None, None, Some(vault)).unwrap();
-        assert!(sign_message("bad-enc", "evm", "hello", None, Some("base64"), None, Some(vault)).is_err());
+        assert!(sign_message(
+            "bad-enc",
+            "evm",
+            "hello",
+            None,
+            Some("base64"),
+            None,
+            Some(vault)
+        )
+        .is_err());
     }
 
     // ================================================================

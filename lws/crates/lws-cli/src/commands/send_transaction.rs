@@ -62,7 +62,11 @@ pub fn run(
 }
 
 /// Resolve the RPC URL: CLI flag > config override (exact chain_id) > config (namespace) > built-in default.
-fn resolve_rpc_url(chain_id: &str, chain_type: ChainType, flag: Option<&str>) -> Result<String, CliError> {
+fn resolve_rpc_url(
+    chain_id: &str,
+    chain_type: ChainType,
+    flag: Option<&str>,
+) -> Result<String, CliError> {
     if let Some(url) = flag {
         return Ok(url.to_string());
     }
@@ -140,9 +144,12 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliEr
     let output = Command::new("curl")
         .args([
             "-fsSL",
-            "-X", "POST",
-            "-H", "Content-Type: text/plain",
-            "-d", &hex_tx,
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: text/plain",
+            "-d",
+            &hex_tx,
             &url,
         ])
         .output()
@@ -155,7 +162,9 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliEr
 
     let tx_hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if tx_hash.is_empty() {
-        return Err(CliError::InvalidArgs("empty response from broadcast".into()));
+        return Err(CliError::InvalidArgs(
+            "empty response from broadcast".into(),
+        ));
     }
     Ok(tx_hash)
 }
@@ -163,10 +172,7 @@ fn broadcast_bitcoin(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliEr
 fn broadcast_cosmos(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliError> {
     use base64::Engine;
     let b64_tx = base64::engine::general_purpose::STANDARD.encode(signed_bytes);
-    let url = format!(
-        "{}/cosmos/tx/v1beta1/txs",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/cosmos/tx/v1beta1/txs", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({
         "tx_bytes": b64_tx,
         "mode": "BROADCAST_MODE_SYNC"
@@ -183,10 +189,7 @@ fn broadcast_cosmos(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliErr
 
 fn broadcast_tron(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliError> {
     let hex_tx = hex::encode(signed_bytes);
-    let url = format!(
-        "{}/wallet/broadcasthex",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/wallet/broadcasthex", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({ "transaction": hex_tx });
     let resp = curl_post_json(&url, &body.to_string())?;
     extract_json_field(&resp, "txid")
@@ -195,10 +198,7 @@ fn broadcast_tron(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliError
 fn broadcast_ton(rpc_url: &str, signed_bytes: &[u8]) -> Result<String, CliError> {
     use base64::Engine;
     let b64_boc = base64::engine::general_purpose::STANDARD.encode(signed_bytes);
-    let url = format!(
-        "{}/sendBoc",
-        rpc_url.trim_end_matches('/')
-    );
+    let url = format!("{}/sendBoc", rpc_url.trim_end_matches('/'));
     let body = serde_json::json!({ "boc": b64_boc });
     let resp = curl_post_json(&url, &body.to_string())?;
     let parsed: serde_json::Value = serde_json::from_str(&resp)
@@ -214,9 +214,12 @@ fn curl_post_json(url: &str, body: &str) -> Result<String, CliError> {
     let output = Command::new("curl")
         .args([
             "-fsSL",
-            "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-d", body,
+            "-X",
+            "POST",
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            body,
             url,
         ])
         .output()
@@ -241,7 +244,8 @@ fn extract_key_for_curve(
         lws_signer::Curve::Secp256k1 => "secp256k1",
         lws_signer::Curve::Ed25519 => "ed25519",
     };
-    let hex_key = obj[field].as_str()
+    let hex_key = obj[field]
+        .as_str()
         .ok_or_else(|| CliError::InvalidArgs(format!("missing {field} key in wallet")))?;
     let bytes = hex::decode(hex_key)
         .map_err(|e| CliError::InvalidArgs(format!("invalid {field} hex: {e}")))?;

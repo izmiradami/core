@@ -8,9 +8,9 @@ pub struct SolanaSigner;
 
 impl SolanaSigner {
     fn signing_key(private_key: &[u8]) -> Result<SigningKey, SignerError> {
-        let key_bytes: [u8; 32] = private_key
-            .try_into()
-            .map_err(|_| SignerError::InvalidPrivateKey(format!("expected 32 bytes, got {}", private_key.len())))?;
+        let key_bytes: [u8; 32] = private_key.try_into().map_err(|_| {
+            SignerError::InvalidPrivateKey(format!("expected 32 bytes, got {}", private_key.len()))
+        })?;
         Ok(SigningKey::from_bytes(&key_bytes))
     }
 }
@@ -110,8 +110,7 @@ mod tests {
         // Verify
         let signing_key = SigningKey::from_bytes(&privkey.try_into().unwrap());
         let verifying_key = signing_key.verifying_key();
-        let sig =
-            ed25519_dalek::Signature::from_bytes(&result.signature.try_into().unwrap());
+        let sig = ed25519_dalek::Signature::from_bytes(&result.signature.try_into().unwrap());
         verifying_key.verify(message, &sig).expect("should verify");
     }
 

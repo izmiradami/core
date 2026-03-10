@@ -33,11 +33,26 @@ impl Config {
         rpc.insert("eip155:42161".into(), "https://arb1.arbitrum.io/rpc".into());
         rpc.insert("eip155:10".into(), "https://mainnet.optimism.io".into());
         rpc.insert("eip155:8453".into(), "https://mainnet.base.org".into());
-        rpc.insert("eip155:56".into(), "https://bsc-dataseed.binance.org".into());
-        rpc.insert("eip155:43114".into(), "https://api.avax.network/ext/bc/C/rpc".into());
-        rpc.insert("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp".into(), "https://api.mainnet-beta.solana.com".into());
-        rpc.insert("bip122:000000000019d6689c085ae165831e93".into(), "https://mempool.space/api".into());
-        rpc.insert("cosmos:cosmoshub-4".into(), "https://cosmos-rest.publicnode.com".into());
+        rpc.insert(
+            "eip155:56".into(),
+            "https://bsc-dataseed.binance.org".into(),
+        );
+        rpc.insert(
+            "eip155:43114".into(),
+            "https://api.avax.network/ext/bc/C/rpc".into(),
+        );
+        rpc.insert(
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp".into(),
+            "https://api.mainnet-beta.solana.com".into(),
+        );
+        rpc.insert(
+            "bip122:000000000019d6689c085ae165831e93".into(),
+            "https://mempool.space/api".into(),
+        );
+        rpc.insert(
+            "cosmos:cosmoshub-4".into(),
+            "https://cosmos-rest.publicnode.com".into(),
+        );
         rpc.insert("tron:mainnet".into(), "https://api.trongrid.io".into());
         rpc.insert("ton:mainnet".into(), "https://toncenter.com/api/v2".into());
         rpc
@@ -67,9 +82,10 @@ impl Config {
         if !path.exists() {
             return Ok(Config::default());
         }
-        let contents = std::fs::read_to_string(path).map_err(|e| crate::error::LwsError::InvalidInput {
-            message: format!("failed to read config: {}", e),
-        })?;
+        let contents =
+            std::fs::read_to_string(path).map_err(|e| crate::error::LwsError::InvalidInput {
+                message: format!("failed to read config: {}", e),
+            })?;
         serde_json::from_str(&contents).map_err(|e| crate::error::LwsError::InvalidInput {
             message: format!("failed to parse config: {}", e),
         })
@@ -121,7 +137,10 @@ mod tests {
     #[test]
     fn test_serde_roundtrip() {
         let mut rpc = HashMap::new();
-        rpc.insert("eip155:1".to_string(), "https://eth.rpc.example".to_string());
+        rpc.insert(
+            "eip155:1".to_string(),
+            "https://eth.rpc.example".to_string(),
+        );
 
         let config = Config {
             vault_path: PathBuf::from("/home/test/.lws"),
@@ -142,17 +161,17 @@ mod tests {
             "eip155:1".to_string(),
             "https://eth.rpc.example".to_string(),
         );
-        assert_eq!(
-            config.rpc_url("eip155:1"),
-            Some("https://eth.rpc.example")
-        );
+        assert_eq!(config.rpc_url("eip155:1"), Some("https://eth.rpc.example"));
     }
 
     #[test]
     fn test_default_rpc_endpoints() {
         let config = Config::default();
         assert_eq!(config.rpc_url("eip155:1"), Some("https://eth.llamarpc.com"));
-        assert_eq!(config.rpc_url("eip155:137"), Some("https://polygon-rpc.com"));
+        assert_eq!(
+            config.rpc_url("eip155:137"),
+            Some("https://polygon-rpc.com")
+        );
         assert_eq!(
             config.rpc_url("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"),
             Some("https://api.mainnet-beta.solana.com")
@@ -165,8 +184,14 @@ mod tests {
             config.rpc_url("cosmos:cosmoshub-4"),
             Some("https://cosmos-rest.publicnode.com")
         );
-        assert_eq!(config.rpc_url("tron:mainnet"), Some("https://api.trongrid.io"));
-        assert_eq!(config.rpc_url("ton:mainnet"), Some("https://toncenter.com/api/v2"));
+        assert_eq!(
+            config.rpc_url("tron:mainnet"),
+            Some("https://api.trongrid.io")
+        );
+        assert_eq!(
+            config.rpc_url("ton:mainnet"),
+            Some("https://toncenter.com/api/v2")
+        );
     }
 
     #[test]
@@ -230,9 +255,15 @@ mod tests {
         // User override replaces default
         assert_eq!(config.rpc_url("eip155:1"), Some("https://custom-eth.rpc"));
         // User-added chain
-        assert_eq!(config.rpc_url("eip155:11155111"), Some("https://sepolia.rpc"));
+        assert_eq!(
+            config.rpc_url("eip155:11155111"),
+            Some("https://sepolia.rpc")
+        );
         // Defaults preserved
-        assert_eq!(config.rpc_url("eip155:137"), Some("https://polygon-rpc.com"));
+        assert_eq!(
+            config.rpc_url("eip155:137"),
+            Some("https://polygon-rpc.com")
+        );
         // Custom vault path
         assert_eq!(config.vault_path, PathBuf::from("/tmp/custom-vault"));
     }

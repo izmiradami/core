@@ -10,7 +10,10 @@ fn set_dir_permissions(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
     let perms = fs::Permissions::from_mode(0o700);
     if let Err(e) = fs::set_permissions(path, perms) {
-        eprintln!("warning: failed to set permissions on {}: {e}", path.display());
+        eprintln!(
+            "warning: failed to set permissions on {}: {e}",
+            path.display()
+        );
     }
 }
 
@@ -20,7 +23,10 @@ fn set_file_permissions(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
     let perms = fs::Permissions::from_mode(0o600);
     if let Err(e) = fs::set_permissions(path, perms) {
-        eprintln!("warning: failed to set permissions on {}: {e}", path.display());
+        eprintln!(
+            "warning: failed to set permissions on {}: {e}",
+            path.display()
+        );
     }
 }
 
@@ -157,10 +163,7 @@ pub fn delete_wallet_file(id: &str, vault_path: Option<&Path>) -> Result<(), Lws
 }
 
 /// Check whether a wallet with the given name already exists in the vault.
-pub fn wallet_name_exists(
-    name: &str,
-    vault_path: Option<&Path>,
-) -> Result<bool, LwsLibError> {
+pub fn wallet_name_exists(name: &str, vault_path: Option<&Path>) -> Result<bool, LwsLibError> {
     let wallets = list_encrypted_wallets(vault_path)?;
     Ok(wallets.iter().any(|w| w.name == name))
 }

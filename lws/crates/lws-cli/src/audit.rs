@@ -34,11 +34,7 @@ pub fn log_audit(entry: &AuditEntry) {
     }
 
     if let Ok(json) = serde_json::to_string(entry) {
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_path)
-        {
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
             let _ = writeln!(file, "{}", json);
 
             #[cfg(unix)]
@@ -75,13 +71,7 @@ pub fn log_wallet_created(wallet_id: &str, accounts: &[WalletAccount]) {
         .map(|a| format!("{}={}", a.chain_id, a.address))
         .collect::<Vec<_>>()
         .join(", ");
-    log_wallet_event(
-        wallet_id,
-        "create_wallet",
-        None,
-        None,
-        Some(details),
-    );
+    log_wallet_event(wallet_id, "create_wallet", None, None, Some(details));
 }
 
 /// Convenience: log a wallet import event with all accounts.
@@ -91,13 +81,7 @@ pub fn log_wallet_imported(wallet_id: &str, accounts: &[WalletAccount]) {
         .map(|a| format!("{}={}", a.chain_id, a.address))
         .collect::<Vec<_>>()
         .join(", ");
-    log_wallet_event(
-        wallet_id,
-        "import_wallet",
-        None,
-        None,
-        Some(details),
-    );
+    log_wallet_event(wallet_id, "import_wallet", None, None, Some(details));
 }
 
 /// Convenience: log a wallet export event.
@@ -107,15 +91,33 @@ pub fn log_wallet_exported(wallet_id: &str) {
 
 /// Convenience: log a wallet deletion event.
 pub fn log_wallet_deleted(wallet_id: &str, name: &str) {
-    log_wallet_event(wallet_id, "delete_wallet", None, None, Some(format!("name={name}")));
+    log_wallet_event(
+        wallet_id,
+        "delete_wallet",
+        None,
+        None,
+        Some(format!("name={name}")),
+    );
 }
 
 /// Convenience: log a wallet rename event.
 pub fn log_wallet_renamed(wallet_id: &str, old_name: &str, new_name: &str) {
-    log_wallet_event(wallet_id, "rename_wallet", None, None, Some(format!("{old_name} -> {new_name}")));
+    log_wallet_event(
+        wallet_id,
+        "rename_wallet",
+        None,
+        None,
+        Some(format!("{old_name} -> {new_name}")),
+    );
 }
 
 /// Convenience: log a broadcast event.
 pub fn log_broadcast(wallet_id: &str, chain_id: &str, tx_hash: &str) {
-    log_wallet_event(wallet_id, "broadcast_transaction", Some(chain_id), None, Some(format!("tx_hash={tx_hash}")));
+    log_wallet_event(
+        wallet_id,
+        "broadcast_transaction",
+        Some(chain_id),
+        None,
+        Some(format!("tx_hash={tx_hash}")),
+    );
 }

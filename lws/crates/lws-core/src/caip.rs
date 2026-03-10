@@ -22,7 +22,10 @@ impl ChainId {
                 ),
             });
         }
-        if !ns.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()) {
+        if !ns
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
             return Err(LwsError::CaipParseError {
                 message: format!("namespace must be [a-z0-9], got '{}'", ns),
             });
@@ -104,7 +107,6 @@ impl<'de> Deserialize<'de> for ChainId {
         ChainId::from_str(&s).map_err(de::Error::custom)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -107,9 +107,6 @@ mod tests {
         let cloned = original.clone();
         assert_eq!(original.expose(), cloned.expose());
         // They should be independent allocations
-        assert_ne!(
-            original.expose().as_ptr(),
-            cloned.expose().as_ptr()
-        );
+        assert_ne!(original.expose().as_ptr(), cloned.expose().as_ptr());
     }
 }

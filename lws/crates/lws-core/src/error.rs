@@ -71,13 +71,13 @@ mod tests {
     #[test]
     fn test_code_mapping_all_variants() {
         assert_eq!(
-            LwsError::ChainNotSupported {
-                chain: "x".into()
-            }
-            .code(),
+            LwsError::ChainNotSupported { chain: "x".into() }.code(),
             LwsErrorCode::ChainNotSupported
         );
-        assert_eq!(LwsError::InvalidPassphrase.code(), LwsErrorCode::InvalidPassphrase);
+        assert_eq!(
+            LwsError::InvalidPassphrase.code(),
+            LwsErrorCode::InvalidPassphrase
+        );
         assert_eq!(
             LwsError::InvalidInput {
                 message: "x".into()

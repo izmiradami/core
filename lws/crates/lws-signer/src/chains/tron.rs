@@ -48,9 +48,7 @@ impl ChainSigner for TronSigner {
         prefixed.extend_from_slice(&addr_bytes);
 
         // Base58Check encode
-        let address = bs58::encode(&prefixed)
-            .with_check()
-            .into_string();
+        let address = bs58::encode(&prefixed).with_check().into_string();
 
         Ok(address)
     }
@@ -120,14 +118,23 @@ mod tests {
     fn test_starts_with_t() {
         let signer = TronSigner;
         let address = signer.derive_address(&test_privkey()).unwrap();
-        assert!(address.starts_with('T'), "Tron address should start with T, got: {}", address);
+        assert!(
+            address.starts_with('T'),
+            "Tron address should start with T, got: {}",
+            address
+        );
     }
 
     #[test]
     fn test_address_length() {
         let signer = TronSigner;
         let address = signer.derive_address(&test_privkey()).unwrap();
-        assert_eq!(address.len(), 34, "Tron address should be 34 chars, got: {}", address.len());
+        assert_eq!(
+            address.len(),
+            34,
+            "Tron address should be 34 chars, got: {}",
+            address.len()
+        );
     }
 
     #[test]
@@ -160,7 +167,11 @@ mod tests {
             .expect("should be valid base58check");
 
         assert_eq!(decoded[0], 0x41, "first byte should be 0x41");
-        assert_eq!(decoded.len(), 21, "decoded should be 21 bytes (1 prefix + 20 hash)");
+        assert_eq!(
+            decoded.len(),
+            21,
+            "decoded should be 21 bytes (1 prefix + 20 hash)"
+        );
     }
 
     #[test]

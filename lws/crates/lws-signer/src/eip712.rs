@@ -54,9 +54,9 @@ pub fn parse_typed_data(json: &str) -> Result<TypedData, SignerError> {
 
     let mut types = HashMap::new();
     for (type_name, fields_val) in types_obj {
-        let fields_arr = fields_val
-            .as_array()
-            .ok_or_else(|| SignerError::InvalidMessage(format!("type '{type_name}' must be an array")))?;
+        let fields_arr = fields_val.as_array().ok_or_else(|| {
+            SignerError::InvalidMessage(format!("type '{type_name}' must be an array"))
+        })?;
         let mut fields = Vec::new();
         for f in fields_arr {
             let name = f
@@ -157,11 +157,7 @@ fn format_struct(name: &str, fields: &[Field]) -> String {
     format!("{name}({})", params.join(","))
 }
 
-fn collect_deps(
-    type_name: &str,
-    types: &HashMap<String, Vec<Field>>,
-    out: &mut BTreeSet<String>,
-) {
+fn collect_deps(type_name: &str, types: &HashMap<String, Vec<Field>>, out: &mut BTreeSet<String>) {
     if let Some(fields) = types.get(type_name) {
         for field in fields {
             let base = base_type(&field.type_name);

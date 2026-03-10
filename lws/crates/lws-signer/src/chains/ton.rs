@@ -13,9 +13,8 @@ const DEFAULT_SUBWALLET_ID: u32 = 698983191;
 /// Wallet v4r2 code cell hash (SHA256 of the cell representation).
 /// Verified against @ton/ton npm package v15.
 const WALLET_V4R2_CODE_HASH: [u8; 32] = [
-    0xfe, 0xb5, 0xff, 0x68, 0x20, 0xe2, 0xff, 0x0d, 0x94, 0x83, 0xe7, 0xe0, 0xd6, 0x2c, 0x81,
-    0x7d, 0x84, 0x67, 0x89, 0xfb, 0x4a, 0xe5, 0x80, 0xc8, 0x78, 0x86, 0x6d, 0x95, 0x9d, 0xab,
-    0xd5, 0xc0,
+    0xfe, 0xb5, 0xff, 0x68, 0x20, 0xe2, 0xff, 0x0d, 0x94, 0x83, 0xe7, 0xe0, 0xd6, 0x2c, 0x81, 0x7d,
+    0x84, 0x67, 0x89, 0xfb, 0x4a, 0xe5, 0x80, 0xc8, 0x78, 0x86, 0x6d, 0x95, 0x9d, 0xab, 0xd5, 0xc0,
 ];
 
 /// Wallet v4r2 code cell depth.
@@ -23,14 +22,9 @@ const WALLET_V4R2_CODE_DEPTH: u16 = 7;
 
 impl TonSigner {
     fn signing_key(private_key: &[u8]) -> Result<SigningKey, SignerError> {
-        let key_bytes: [u8; 32] = private_key
-            .try_into()
-            .map_err(|_| {
-                SignerError::InvalidPrivateKey(format!(
-                    "expected 32 bytes, got {}",
-                    private_key.len()
-                ))
-            })?;
+        let key_bytes: [u8; 32] = private_key.try_into().map_err(|_| {
+            SignerError::InvalidPrivateKey(format!("expected 32 bytes, got {}", private_key.len()))
+        })?;
         Ok(SigningKey::from_bytes(&key_bytes))
     }
 
@@ -137,11 +131,7 @@ impl ChainSigner for TonSigner {
         self.sign(private_key, tx_bytes)
     }
 
-    fn sign_message(
-        &self,
-        private_key: &[u8],
-        message: &[u8],
-    ) -> Result<SignOutput, SignerError> {
+    fn sign_message(&self, private_key: &[u8], message: &[u8]) -> Result<SignOutput, SignerError> {
         self.sign(private_key, message)
     }
 
@@ -172,8 +162,7 @@ mod tests {
     use ed25519_dalek::Verifier;
 
     fn test_privkey() -> Vec<u8> {
-        hex::decode("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60")
-            .unwrap()
+        hex::decode("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").unwrap()
     }
 
     #[test]
@@ -201,10 +190,7 @@ mod tests {
         // Private key: 9d61b19d... -> Public key: d75a9801...
         let signer = TonSigner;
         let address = signer.derive_address(&test_privkey()).unwrap();
-        assert_eq!(
-            address,
-            "EQDNrJfJFisuFBrURjgosqcO_fh2K5foNWPzUr7PkC6Ipopv"
-        );
+        assert_eq!(address, "EQDNrJfJFisuFBrURjgosqcO_fh2K5foNWPzUr7PkC6Ipopv");
     }
 
     #[test]
@@ -212,7 +198,10 @@ mod tests {
         let signer = TonSigner;
         let address = signer.derive_address(&test_privkey()).unwrap();
         assert_eq!(address.len(), 48, "TON address should be 48 chars");
-        assert!(address.starts_with("EQ"), "bounceable workchain-0 address should start with EQ");
+        assert!(
+            address.starts_with("EQ"),
+            "bounceable workchain-0 address should start with EQ"
+        );
     }
 
     #[test]

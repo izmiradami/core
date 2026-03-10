@@ -23,4 +23,3 @@ pub fn delete_wallet(id: &str) -> Result<(), CliError> {
 pub fn wallet_name_exists(name: &str) -> Result<bool, CliError> {
     Ok(lws_lib::vault::wallet_name_exists(name, None)?)
 }
-
