@@ -121,8 +121,7 @@ pub fn resolve_wallet_secret(wallet_name: &str) -> Result<WalletSecret, CliError
 }
 
 /// Extract a private key for a specific curve from a JSON key pair.
-/// Used by sign commands to get the right key from a private-key wallet.
-pub fn extract_key_for_curve(
+fn extract_key_for_curve(
     json_bytes: &[u8],
     curve: lws_signer::Curve,
 ) -> Result<SecretBytes, CliError> {
@@ -139,4 +138,30 @@ pub fn extract_key_for_curve(
     let bytes = hex::decode(hex_key)
         .map_err(|e| CliError::InvalidArgs(format!("invalid {field} hex: {e}")))?;
     Ok(SecretBytes::from_slice(&bytes))
+}
+
+/// Resolve a wallet secret into the private key bytes for a specific chain.
+///
+/// This is the single place where `WalletSecret` → `SecretBytes` conversion
+/// happens, so signing commands don't duplicate HD derivation / key-pair
+/// extraction logic.
+pub fn resolve_signing_key(
+    wallet_name: &str,
+    chain_type: lws_core::ChainType,
+    index: u32,
+) -> Result<SecretBytes, CliError> {
+    let wallet_secret = resolve_wallet_secret(wallet_name)?;
+    let signer = lws_signer::signer_for_chain(chain_type);
+
+    match wallet_secret {
+        WalletSecret::Mnemonic(phrase) => {
+            let mnemonic = lws_signer::Mnemonic::from_phrase(&phrase)?;
+            let path = signer.default_derivation_path(index);
+            let curve = signer.curve();
+            Ok(lws_signer::HdDeriver::derive_from_mnemonic_cached(
+                &mnemonic, "", &path, curve,
+            )?)
+        }
+        WalletSecret::PrivateKeys(secret) => extract_key_for_curve(secret.expose(), signer.curve()),
+    }
 }
