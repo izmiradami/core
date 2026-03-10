@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)/lws"
+
+echo "Running cargo fmt check..."
+cargo fmt --all -- --check
+
+echo "Running cargo clippy..."
+cargo clippy --workspace -- -D warnings
+
+echo "Pre-commit checks passed."
