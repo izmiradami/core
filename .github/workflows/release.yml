@@ -1,9 +1,21 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.2.3)"
+        required: true
+        type: string
+      commit_sha:
+        description: "Commit SHA to release from"
+        required: true
+        type: string
+      branch:
+        description: "Branch name to push version bump to"
+        required: true
+        type: string
+        default: "main"
 
 permissions:
   contents: write
@@ -14,11 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
-          ref: main
+          ref: ${{ inputs.branch }}
 
       - name: Bump version in source files
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           "$GITHUB_WORKSPACE/scripts/set-version.sh" "$V" --all
 
       - name: Generate READMEs
@@ -26,11 +39,13 @@ jobs:
 
       - name: Commit version bump
         run: |
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --staged --quiet && exit 0
-          git commit -m "chore: bump version to ${GITHUB_REF_NAME#v}"
+          git commit -m "chore: bump version to $V"
           git push
 
   build:
@@ -59,6 +74,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.commit_sha }}
 
       - name: Install Rust toolchain
         run: |
@@ -112,6 +129,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.commit_sha }}
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
@@ -124,7 +143,8 @@ jobs:
 
       - name: Set version from tag
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           "$GITHUB_WORKSPACE/scripts/set-version.sh" "$V" --python
 
       - name: Build wheels
@@ -181,6 +201,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.commit_sha }}
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -205,7 +227,8 @@ jobs:
 
       - name: Set version from tag
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           "$GITHUB_WORKSPACE/scripts/set-version.sh" "$V" --node
 
       - name: Install dependencies
@@ -239,6 +262,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.commit_sha }}
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -247,7 +272,8 @@ jobs:
 
       - name: Set version from tag
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           "$GITHUB_WORKSPACE/scripts/set-version.sh" "$V" --node
 
       - name: Install dependencies
@@ -320,14 +346,15 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
-          ref: main
+          ref: ${{ inputs.commit_sha }}
 
       - name: Install Rust toolchain
         run: rustup update stable
 
       - name: Set version from tag
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${{ inputs.tag }}"
+          V="${V#v}"
           "$GITHUB_WORKSPACE/scripts/set-version.sh" "$V" --rust
 
       - name: Publish ows-core
@@ -354,6 +381,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Create and push tag
+        run: |
+          git tag "${{ inputs.tag }}" "${{ inputs.commit_sha }}"
+          git push origin "${{ inputs.tag }}"
+
       - name: Download artifacts
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -362,5 +398,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ inputs.commit_sha }}
           generate_release_notes: true
           files: ows-*
