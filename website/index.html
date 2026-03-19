@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OWS - Open Wallet Standard</title>
-  <meta name="description" content="An open standard for secure local wallet storage and agent access. One interface for all chains, all agents, all tools.">
+  <meta name="description" content="An open standard that unifies how developers interact with wallets. One interface to create, sign, and manage wallets across every chain, every tool, and every agent.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
     <div class="header-inner">
       <a href="/" class="header-logo">OWS</a>
       <nav class="header-nav" id="nav">
-        <a href="#principles">Principles</a>
+        <a href="#principles">Why OWS</a>
         <a href="#architecture">Architecture</a>
         <a href="#spec">Specification</a>
         <a href="#prior-art">Prior Art</a>
@@ -52,10 +52,10 @@
       </div>
       <div class="hero-right">
         <p class="hero-description">
-          An open, neutral standard for secure local wallet storage and agent access.
-          One vault, one interface, every chain. Agents sign transactions without ever
-          touching private keys. OWS exists to give every AI agent a wallet it can
-          trust&mdash;and every user a wallet they control.
+          An open standard that unifies how developers interact with wallets.
+          Every CLI, SDK, and agent manages keys differently&mdash;different formats,
+          different chains, different interfaces. OWS is one local primitive to
+          create, sign, and manage wallets across every chain, tool, and agent.
         </p>
         <div class="hero-actions">
           <a href="docs/" class="btn btn-primary btn-large">Read the Spec</a>
@@ -64,36 +64,7 @@
       </div>
     </div>
 
-    <!-- Live Terminal Demo -->
-    <div class="hero-terminal">
-      <div class="terminal-demo" id="terminal-demo">
-        <div class="terminal-chrome">
-          <div class="terminal-dots">
-            <span></span><span></span><span></span>
-          </div>
-          <div class="terminal-tabs">
-            <button class="terminal-tab active">Create</button>
-            <button class="terminal-tab">Sign</button>
-            <button class="terminal-tab">Ecosystem</button>
-          </div>
-          <button class="terminal-replay" title="Replay">&#x21bb;</button>
-        </div>
-        <div class="terminal-body"></div>
-      </div>
-      <p class="terminal-annotation">One command creates addresses for every supported chain</p>
-    </div>
-
-  </section>
-
-  <!-- The Problem -->
-  <section class="section-full section-dark" id="problem">
-    <div class="section-full-inner">
-      <span class="section-label" style="color: var(--gray-500);">The Problem</span>
-      <h2 class="section-title" style="color: var(--white);">Every tool reinvents the wallet</h2>
-      <p class="section-description" style="color: var(--gray-400); max-width: 620px;">
-        Every CLI, agent, and script implements its own key management. The result: keys scattered everywhere with no shared security.
-      </p>
-
+    <div class="hero-problem-wrapper">
       <div class="problem-terminals" id="problem-terminals">
 
         <!-- Before: The Mess -->
@@ -154,95 +125,34 @@
         </div>
       </div>
     </div>
+
   </section>
 
-  <!-- Principles -->
-  <section class="section-full section-alt" id="principles">
-    <div class="section-full-inner">
-      <span class="section-label">Design Principles</span>
-      <h2 class="section-title">Built for the agent era</h2>
-      <p class="section-description">
-        Five principles that make OWS different from every wallet SDK, cloud API, and ad-hoc keystore that came before it.
-      </p>
-
-      <div class="principles">
-        <div class="principle">
-          <span class="principle-number">01</span>
-          <div>
-            <h3>Keys never leave the vault</h3>
-            <p>Private keys are encrypted at rest and decrypted only inside an isolated signing process. They are never exposed to agent prompts, LLM contexts, or parent processes.</p>
+  <!-- Live Terminal Demo -->
+  <section class="section-full section-dark hero-terminal-section">
+    <div class="hero-terminal">
+      <span class="section-label" style="color: var(--gray-500);">How It Works</span>
+      <h2 class="section-title" style="color: var(--white); margin-bottom: 1.5rem;">One CLI, every chain</h2>
+      <div class="terminal-demo" id="terminal-demo">
+        <div class="terminal-chrome">
+          <div class="terminal-dots">
+            <span></span><span></span><span></span>
           </div>
-        </div>
-        <div class="principle">
-          <span class="principle-number">02</span>
-          <div>
-            <h3>Chain-agnostic by default</h3>
-            <p>CAIP-2 chain identifiers and CAIP-10 account identifiers. EVM, Solana, Tron, Cosmos, Bitcoin, TON&mdash;all first-class citizens. No chain is special.</p>
+          <div class="terminal-tabs">
+            <button class="terminal-tab active">Create</button>
+            <button class="terminal-tab">Sign</button>
+            <button class="terminal-tab">Ecosystem</button>
           </div>
+          <button class="terminal-replay" title="Replay">&#x21bb;</button>
         </div>
-        <div class="principle">
-          <span class="principle-number">03</span>
-          <div>
-            <h3>Policy before signing</h3>
-            <p>Every agent transaction passes through a policy engine before key material is touched. Policies are attached to API keys, scoping what each agent can do. The owner bypasses policies entirely&mdash;sudo access to all wallets.</p>
-          </div>
-        </div>
-        <div class="principle">
-          <span class="principle-number">04</span>
-          <div>
-            <h3>One interface, any consumer</h3>
-            <p>CLI tools, MCP servers, REST APIs, and library imports all use the same abstract interface. A wallet created by one tool is usable by any other.</p>
-          </div>
-        </div>
-        <div class="principle">
-          <span class="principle-number">05</span>
-          <div>
-            <h3>Open and forkable</h3>
-            <p>Permissionlessly extensible. New chains, policy types, and storage backends are added via plugins, not core spec changes. CC0 licensed. No vendor lock-in.</p>
-          </div>
-        </div>
+        <div class="terminal-body"></div>
       </div>
-    </div>
-  </section>
-
-  <!-- Architecture -->
-  <section class="section" id="architecture">
-    <span class="section-label">Architecture</span>
-    <h2 class="section-title">How it works</h2>
-    <p class="section-description">
-      Agents talk to the Access Layer. The Access Layer enforces policies, delegates signing to an isolated enclave, and never exposes key material upstream.
-    </p>
-
-    <!-- Flow Steps -->
-    <div class="flow">
-      <div class="flow-step">
-        <div class="flow-step-number">Step 1</div>
-        <h4>Request</h4>
-        <p>Agent calls <code>ows_sign</code> via MCP, REST, or SDK with a chain ID and transaction object.</p>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <div class="flow-step-number">Step 2</div>
-        <h4>Policy Check</h4>
-        <p>Spending limits, allowlists, chain restrictions, and simulation requirements are evaluated before any key is touched.</p>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <div class="flow-step-number">Step 3</div>
-        <h4>Sign</h4>
-        <p>Key is decrypted in the isolated enclave, transaction signed, key wiped from memory. Signed transaction returned to caller.</p>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <div class="flow-step-number">Step 4</div>
-        <h4>Submit <span style="font-weight: 400; font-size: 0.75rem; color: var(--gray-400);">(optional)</span></h4>
-        <p>If RPC URLs are configured, the signed transaction is broadcast on-chain and the transaction hash is returned.</p>
-      </div>
+      <p class="terminal-annotation">One command creates addresses for every supported chain</p>
     </div>
   </section>
 
   <!-- Features -->
-  <section class="section-full section-alt">
+  <section class="section-full section-alt" id="principles">
     <div class="section-full-inner">
       <span class="section-label">Why OWS</span>
       <h2 class="section-title">Zero compromise wallet access</h2>
@@ -282,175 +192,38 @@
     </div>
   </section>
 
-  <!-- Quick Start -->
-  <section class="section" id="quickstart">
-    <span class="section-label">Get Started</span>
-    <h2 class="section-title">From zero to signing in 60 seconds</h2>
+  <!-- Architecture -->
+  <section class="section" id="architecture">
+    <span class="section-label">Architecture</span>
+    <h2 class="section-title">How it works</h2>
     <p class="section-description">
-      Choose your path: install the CLI for terminal use, or add the npm/pip package directly to your project. The language bindings are fully self-contained &mdash; they embed the Rust core via native FFI. No CLI required.
+      Agents talk to the Access Layer. The Access Layer enforces policies, delegates signing to an isolated enclave, and never exposes key material upstream.
     </p>
 
-    <!-- Install options -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
-      <div class="code-block-wrapper" style="max-width: 100%;">
-        <div class="code-block-header">
-          <span class="code-block-title">CLI</span>
-          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-        </div>
-        <div class="code-block">
-<pre>curl -fsSL https://openwallet.sh/install.sh | bash</pre>
-        </div>
+    <!-- Flow Steps -->
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-step-number">Step 1</div>
+        <h4>Request</h4>
+        <p>Agent calls <code>ows_sign</code> via MCP, REST, or SDK with a chain ID and transaction object.</p>
       </div>
-      <div class="code-block-wrapper" style="max-width: 100%;">
-        <div class="code-block-header">
-          <span class="code-block-title">Node.js</span>
-          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-        </div>
-        <div class="code-block">
-<pre>npm install @open-wallet-standard/core</pre>
-        </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">
+        <div class="flow-step-number">Step 2</div>
+        <h4>Policy Check</h4>
+        <p>Spending limits, allowlists, chain restrictions, and simulation requirements are evaluated before any key is touched.</p>
       </div>
-      <div class="code-block-wrapper" style="max-width: 100%;">
-        <div class="code-block-header">
-          <span class="code-block-title">Python</span>
-          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-        </div>
-        <div class="code-block">
-<pre>pip install open-wallet-standard</pre>
-        </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">
+        <div class="flow-step-number">Step 3</div>
+        <h4>Sign</h4>
+        <p>Key is decrypted in the isolated enclave, transaction signed, key wiped from memory. Signed transaction returned to caller.</p>
       </div>
-    </div>
-
-    <!-- Code examples side by side -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-      <div class="code-block-wrapper" style="max-width: 100%;">
-        <div class="code-block-header">
-          <span class="code-block-title">Node.js &mdash; <a href="https://www.npmjs.com/package/@open-wallet-standard/core" style="color: var(--gray-400); text-decoration: underline;">npm</a></span>
-          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-        </div>
-        <div class="code-block">
-<pre><span class="keyword">import</span> { createWallet, signMessage }
-  <span class="keyword">from</span> <span class="string">"@open-wallet-standard/core"</span>;
-
-<span class="keyword">const</span> wallet = createWallet(<span class="string">"agent-treasury"</span>);
-<span class="comment">// => accounts for EVM, Solana, BTC, Cosmos, Tron, TON</span>
-
-<span class="keyword">const</span> sig = signMessage(
-  <span class="string">"agent-treasury"</span>, <span class="string">"evm"</span>, <span class="string">"hello"</span>
-);
-console.log(sig.signature);</pre>
-        </div>
-      </div>
-      <div class="code-block-wrapper" style="max-width: 100%;">
-        <div class="code-block-header">
-          <span class="code-block-title">Python &mdash; <a href="https://pypi.org/project/open-wallet-standard/" style="color: var(--gray-400); text-decoration: underline;">PyPI</a></span>
-          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-        </div>
-        <div class="code-block">
-<pre><span class="keyword">from</span> open_wallet_standard <span class="keyword">import</span> (
-    create_wallet, sign_message
-)
-
-wallet = create_wallet(<span class="string">"agent-treasury"</span>)
-<span class="comment"># => accounts for EVM, Solana, BTC, Cosmos, Tron, TON</span>
-
-sig = sign_message(
-    <span class="string">"agent-treasury"</span>, <span class="string">"evm"</span>, <span class="string">"hello"</span>
-)
-print(sig[<span class="string">"signature"</span>])</pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- CLI example -->
-    <div class="code-block-wrapper" style="max-width: 100%;">
-      <div class="code-block-header">
-        <span class="code-block-title">CLI</span>
-        <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-      </div>
-      <div class="code-block">
-<pre><span class="comment"># Create a wallet (derives addresses for all supported chains)</span>
-ows wallet create --name "agent-treasury"
-<span class="comment"># => Created wallet 3198bc9c-...</span>
-<span class="comment">#    eip155:1       0xab16...  m/44'/60'/0'/0/0</span>
-<span class="comment">#    solana:...     7Kz9...    m/44'/501'/0'/0'</span>
-<span class="comment">#    bip122:...     bc1q...    m/84'/0'/0'/0/0</span>
-<span class="comment">#    cosmos:...     cosmos1... m/44'/118'/0'/0/0</span>
-<span class="comment">#    tron:mainnet   TKLm...    m/44'/195'/0'/0/0</span>
-<span class="comment">#    ton:mainnet    EQCx...    m/44'/607'/0'/0'</span>
-
-<span class="comment"># Sign a message</span>
-ows sign message --wallet agent-treasury --chain evm --message <span class="string">"hello"</span>
-
-<span class="comment"># Sign a transaction</span>
-ows sign tx --wallet agent-treasury --chain evm --tx-hex <span class="string">"deadbeef..."</span></pre>
-      </div>
-    </div>
-
-    <!-- MCP Config -->
-    <div class="code-block-wrapper" style="max-width: 100%; margin-top: 1.5rem;">
-      <div class="code-block-header">
-        <span class="code-block-title">claude_code_config.json — Connect Claude to OWS</span>
-        <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
-      </div>
-      <div class="code-block">
-<pre>{
-  <span class="string">"mcpServers"</span>: {
-    <span class="string">"ows"</span>: {
-      <span class="string">"command"</span>: <span class="string">"ows"</span>,
-      <span class="string">"args"</span>: [<span class="string">"serve"</span>, <span class="string">"--mcp"</span>]
-    }
-  }
-}</pre>
-      </div>
-    </div>
-  </section>
-
-  <!-- Specification -->
-  <section class="section-full section-alt" id="spec">
-    <div class="section-full-inner">
-      <span class="section-label">Specification</span>
-      <h2 class="section-title">Modular by design</h2>
-      <p class="section-description">
-        Seven sub-specifications, each covering a distinct concern. Add a new chain without touching the signing interface. Change the policy engine without touching storage.
-      </p>
-
-      <div class="spec-grid">
-        <a href="docs/doc.html?slug=01-storage-format" class="spec-card">
-          <div class="spec-card-number">Spec 01</div>
-          <h3>Storage Format</h3>
-          <p>Encrypted keystore format, vault directory structure, filesystem permissions, and audit logging.</p>
-        </a>
-        <a href="docs/doc.html?slug=02-signing-interface" class="spec-card">
-          <div class="spec-card-number">Spec 02</div>
-          <h3>Signing Interface</h3>
-          <p>The core sign, signAndSend, signMessage, and simulate operations with error handling.</p>
-        </a>
-        <a href="docs/doc.html?slug=03-policy-engine" class="spec-card">
-          <div class="spec-card-number">Spec 03</div>
-          <h3>Policy Engine</h3>
-          <p>Spending limits, allowlists, denylists, simulation requirements, time restrictions, and custom rules.</p>
-        </a>
-        <a href="docs/doc.html?slug=04-agent-access-layer" class="spec-card">
-          <div class="spec-card-number">Spec 04</div>
-          <h3>Agent Access Layer</h3>
-          <p>MCP server tools, REST API endpoints, library SDK, and authentication for agent access.</p>
-        </a>
-        <a href="docs/doc.html?slug=05-key-isolation" class="spec-card">
-          <div class="spec-card-number">Spec 05</div>
-          <h3>Key Isolation</h3>
-          <p>Process-level isolation, enclave protocol, passphrase handling, threat model, and defense in depth.</p>
-        </a>
-        <a href="docs/doc.html?slug=06-wallet-lifecycle" class="spec-card">
-          <div class="spec-card-number">Spec 06</div>
-          <h3>Wallet Lifecycle</h3>
-          <p>Creation, import, export, backup, recovery, key rotation, and wallet discovery.</p>
-        </a>
-        <a href="docs/doc.html?slug=07-supported-chains" class="spec-card">
-          <div class="spec-card-number">Spec 07</div>
-          <h3>Supported Chains</h3>
-          <p>Chain families, CAIP identifiers, HD derivation, RPC endpoints, and asset identification.</p>
-        </a>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">
+        <div class="flow-step-number">Step 4</div>
+        <h4>Submit <span style="font-weight: 400; font-size: 0.75rem; color: var(--gray-400);">(optional)</span></h4>
+        <p>If RPC URLs are configured, the signed transaction is broadcast on-chain and the transaction hash is returned.</p>
       </div>
     </div>
   </section>
@@ -538,6 +311,95 @@ ows sign tx --wallet agent-treasury --chain evm --tx-hex <span class="string">"d
     <p style="font-size: 0.8125rem; color: var(--gray-400); margin-top: 0.5rem;">
       * Network required only for transaction broadcasting and balance queries, not for signing.
     </p>
+  </section>
+
+  <!-- Quick Start -->
+  <section class="section" id="quickstart">
+    <span class="section-label">Get Started</span>
+    <h2 class="section-title">From zero to signing in 60 seconds</h2>
+    <p class="section-description">
+      Choose your path: install the CLI for terminal use, or add the npm/pip package directly to your project. The language bindings are fully self-contained &mdash; they embed the Rust core via native FFI. No CLI required.
+    </p>
+
+    <!-- Install options -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+      <div class="code-block-wrapper" style="max-width: 100%;">
+        <div class="code-block-header">
+          <span class="code-block-title">CLI</span>
+          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-block">
+<pre>curl -fsSL https://openwallet.sh/install.sh | bash</pre>
+        </div>
+      </div>
+      <div class="code-block-wrapper" style="max-width: 100%;">
+        <div class="code-block-header">
+          <span class="code-block-title">Node.js</span>
+          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-block">
+<pre>npm install @open-wallet-standard/core</pre>
+        </div>
+      </div>
+      <div class="code-block-wrapper" style="max-width: 100%;">
+        <div class="code-block-header">
+          <span class="code-block-title">Python</span>
+          <button class="code-block-copy" onclick="copyCode(this)">Copy</button>
+        </div>
+        <div class="code-block">
+<pre>pip install open-wallet-standard</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Specification -->
+  <section class="section-full section-alt" id="spec">
+    <div class="section-full-inner">
+      <span class="section-label">Specification</span>
+      <h2 class="section-title">Modular by design</h2>
+      <p class="section-description">
+        Seven sub-specifications, each covering a distinct concern. Add a new chain without touching the signing interface. Change the policy engine without touching storage.
+      </p>
+
+      <div class="spec-grid">
+        <a href="docs/doc.html?slug=01-storage-format" class="spec-card">
+          <div class="spec-card-number">Spec 01</div>
+          <h3>Storage Format</h3>
+          <p>Encrypted keystore format, vault directory structure, filesystem permissions, and audit logging.</p>
+        </a>
+        <a href="docs/doc.html?slug=02-signing-interface" class="spec-card">
+          <div class="spec-card-number">Spec 02</div>
+          <h3>Signing Interface</h3>
+          <p>The core sign, signAndSend, signMessage, and simulate operations with error handling.</p>
+        </a>
+        <a href="docs/doc.html?slug=03-policy-engine" class="spec-card">
+          <div class="spec-card-number">Spec 03</div>
+          <h3>Policy Engine</h3>
+          <p>Spending limits, allowlists, denylists, simulation requirements, time restrictions, and custom rules.</p>
+        </a>
+        <a href="docs/doc.html?slug=04-agent-access-layer" class="spec-card">
+          <div class="spec-card-number">Spec 04</div>
+          <h3>Agent Access Layer</h3>
+          <p>MCP server tools, REST API endpoints, library SDK, and authentication for agent access.</p>
+        </a>
+        <a href="docs/doc.html?slug=05-key-isolation" class="spec-card">
+          <div class="spec-card-number">Spec 05</div>
+          <h3>Key Isolation</h3>
+          <p>Process-level isolation, enclave protocol, passphrase handling, threat model, and defense in depth.</p>
+        </a>
+        <a href="docs/doc.html?slug=06-wallet-lifecycle" class="spec-card">
+          <div class="spec-card-number">Spec 06</div>
+          <h3>Wallet Lifecycle</h3>
+          <p>Creation, import, export, backup, recovery, key rotation, and wallet discovery.</p>
+        </a>
+        <a href="docs/doc.html?slug=07-supported-chains" class="spec-card">
+          <div class="spec-card-number">Spec 07</div>
+          <h3>Supported Chains</h3>
+          <p>Chain families, CAIP identifiers, HD derivation, RPC endpoints, and asset identification.</p>
+        </a>
+      </div>
+    </div>
   </section>
 
   <!-- Prior Art -->
@@ -646,7 +508,7 @@ ows sign tx --wallet agent-treasury --chain evm --tx-hex <span class="string">"d
       <div>
         <div class="footer-brand">OWS</div>
         <p class="footer-description">
-          The Open Wallet Standard. An open specification for secure local wallet storage and agent access. CC0 licensed.
+          The Open Wallet Standard. An open standard that unifies how developers interact with wallets. One interface for every chain, every tool, every agent. CC0 licensed.
         </p>
       </div>
       <div class="footer-col">
