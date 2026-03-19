@@ -1630,7 +1630,13 @@ mod tests {
         assert!(result.is_ok(), "sign_typed_data failed: {:?}", result.err());
 
         let sign_result = result.unwrap();
-        assert!(!sign_result.signature.is_empty(), "signature should not be empty");
-        assert!(sign_result.recovery_id.is_some(), "recovery_id should be present for EVM");
+        assert!(
+            !sign_result.signature.is_empty(),
+            "signature should not be empty"
+        );
+        assert!(
+            sign_result.recovery_id.is_some(),
+            "recovery_id should be present for EVM"
+        );
     }
 }
