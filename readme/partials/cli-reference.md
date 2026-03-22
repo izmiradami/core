@@ -7,6 +7,10 @@
 | `ows wallet info` | Show vault path and supported chains |
 | `ows sign message` | Sign a message with chain-specific formatting |
 | `ows sign tx` | Sign a raw transaction |
+| `ows pay request` | Make a paid request to an x402-enabled API endpoint |
+| `ows pay discover` | Discover x402-enabled services |
+| `ows fund deposit` | Create a MoonPay deposit to fund a wallet with USDC |
+| `ows fund balance` | Check token balances for a wallet |
 | `ows mnemonic generate` | Generate a BIP-39 mnemonic phrase |
 | `ows mnemonic derive` | Derive an address from a mnemonic |
 | `ows update` | Update ows and bindings |

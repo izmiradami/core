@@ -155,6 +155,69 @@ Derive an address from a mnemonic for a given chain. Reads the mnemonic from the
 echo "word1 word2 ..." | ows mnemonic derive --chain evm
 ```
 
+## Payment Commands
+
+### `ows pay request`
+
+Make an HTTP request with automatic x402 payment handling. If the server returns 402, the CLI detects the payment requirements, signs an EIP-3009 `TransferWithAuthorization` for USDC, and retries with the payment header.
+
+```bash
+ows pay request "https://api.example.com/data" --wallet "my-wallet"
+ows pay request "https://api.example.com/submit" --wallet "my-wallet" --method POST --body '{"query":"test"}'
+```
+
+| Flag | Description |
+|------|-------------|
+| `--wallet <NAME>` | Wallet name (required) |
+| `--method <METHOD>` | HTTP method: GET, POST, PUT, DELETE, PATCH (default: GET) |
+| `--body <JSON>` | Request body (JSON string) |
+| `--no-passphrase` | Skip passphrase prompt (use empty passphrase) |
+
+### `ows pay discover`
+
+Discover x402-enabled services from the Bazaar directory. Supports pagination and client-side search filtering.
+
+```bash
+ows pay discover
+ows pay discover --query "weather"
+ows pay discover --limit 20 --offset 100
+```
+
+| Flag | Description |
+|------|-------------|
+| `--query <SEARCH>` | Filter services by URL or description |
+| `--limit <N>` | Max results per page (default: 100) |
+| `--offset <N>` | Offset into results for pagination |
+
+## Funding Commands
+
+### `ows fund deposit`
+
+Create a MoonPay deposit that generates multi-chain deposit addresses. Send crypto to any of the provided addresses and it will auto-convert to USDC on your chosen chain.
+
+```bash
+ows fund deposit --wallet "my-wallet"
+ows fund deposit --wallet "my-wallet" --chain base
+```
+
+| Flag | Description |
+|------|-------------|
+| `--wallet <NAME>` | Wallet name (required) |
+| `--chain <CHAIN>` | Target chain (default: base) |
+
+### `ows fund balance`
+
+Check token balances for a wallet on a given chain.
+
+```bash
+ows fund balance --wallet "my-wallet" --chain base
+```
+
+| Flag | Description |
+|------|-------------|
+| `--wallet <NAME>` | Wallet name (required) |
+| `--chain <CHAIN>` | Chain to query (required) |
+
 ## System Commands
 
 ### `ows update`
