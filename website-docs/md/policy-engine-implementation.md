@@ -64,7 +64,7 @@ Different agents get different tokens with different policies. The identity is t
 
 **Why:** Wallet-level policies with a shared passphrase have no real security boundary. Every caller authenticates with the same credential, so there's no way to distinguish agents from owners, and no way to give different agents different permissions. The API key IS the identity boundary.
 
-**2. Declarative rules are first-class.** The original spec treats all policies as executables. We add built-in rule types (spending limits, chain restrictions, address allowlists) evaluated in-process. Custom executables remain as an escape hatch.
+**2. Declarative rules are first-class.** The original spec treats all policies as executables. We add built-in rule types (`allowed_chains`, `expires_at`) evaluated in-process. Per-tx value caps, recipient allowlists, and cumulative spend are not declarative — use a custom **`executable`** policy if you need those. Custom executables remain as an escape hatch.
 
 **Why:** The 90% case shouldn't require writing a shell script.
 

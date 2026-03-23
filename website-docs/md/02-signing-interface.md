@@ -19,13 +19,13 @@
 | Error code: `WALLET_NOT_FOUND` | Done | `ows-core/src/error.rs` |
 | Error code: `CHAIN_NOT_SUPPORTED` | Done | `ows-core/src/error.rs` |
 | Error code: `INVALID_PASSPHRASE` | Done | `ows-core/src/error.rs` |
-| Error code: `POLICY_DENIED` | Not started | No policy engine |
+| Error code: `POLICY_DENIED` | Done | Returned when an API key request fails policy (`ows-core/src/error.rs`) |
 | Error code: `INSUFFICIENT_FUNDS` | Not started | |
 | Error code: `VAULT_LOCKED` | Not started | No session/lock concept |
 | Error code: `BROADCAST_FAILED` | Not started | |
 | Error code: `TIMEOUT` | Not started | |
 | Concurrency (per-wallet mutex / nonce manager) | Not started | No concurrency controls |
-| Caller authentication (owner vs agent) | Not started | No two-tier access model |
+| Caller authentication (owner vs agent) | Partial | Implemented for `ows` CLI (`ows_key_` vs passphrase); bindings not yet split |
 
 ## Design Decision
 

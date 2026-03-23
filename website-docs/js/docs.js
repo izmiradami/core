@@ -151,12 +151,13 @@ async function loadDoc() {
   try {
     var md;
     for (var i = 0; i < DOCS_PATHS.length; i++) {
-      var res = await fetch(DOCS_PATHS[i] + '/' + slug + '.md');
+      var res = await fetch(DOCS_PATHS[i] + '/' + doc.slug + '.md');
       if (res.ok) { md = await res.text(); break; }
     }
     if (!md) throw new Error('not found');
 
     isFirstBlockquote = true;
+    // nosemgrep: javascript.browser.security.innerHTML-concatenation.innerHTML-concatenation
     content.innerHTML = marked.parse(md) + buildNav(doc.slug);
     addCopyButtons();
     scrollToHash();

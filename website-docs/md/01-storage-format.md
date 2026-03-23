@@ -13,9 +13,9 @@
 | Audit log (`~/.ows/logs/audit.jsonl`) | Done | `ows-cli/src/audit.rs` |
 | Crypto object (AES-256-GCM + scrypt) | Done | `ows-signer/src/crypto.rs` |
 | Keystore v3 import | Not started | No v3 import/re-wrap logic |
-| `~/.ows/keys/` directory + API key files | Not started | Approach B: wallet secrets re-encrypted under HKDF(token) |
-| `~/.ows/policies/` directory + policy files | Not started | |
-| HKDF-SHA256 crypto envelope support | Not started | For API key token-derived encryption |
+| `~/.ows/keys/` directory + API key files | Done | `ows-lib/src/key_store.rs` |
+| `~/.ows/policies/` directory + policy files | Done | `ows-lib/src/policy_store.rs` |
+| HKDF-SHA256 crypto envelope support | Done | API key token-derived encryption |
 | Passphrase 12-char minimum enforcement | Not started | No validation at creation time |
 
 ## Design Decision

@@ -6,28 +6,23 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Two-tier access model (owner vs agent) | Not started | Credential-based: passphrase = owner, token = agent |
-| API key creation (`ows key create`) | Not started | |
-| API key file format + storage (`~/.ows/keys/`) | Not started | Approach B: mnemonic re-encrypted under HKDF(token) |
-| HKDF-SHA256 key derivation for API tokens | Not started | |
-| Policy file format + storage (`~/.ows/policies/`) | Not started | |
-| Declarative policy rules (`allowed_chains`, `expires_at`) | Partial | See below |
-| Custom executable policy protocol (stdin/stdout) | Not started | |
-| PolicyContext structure | Not started | |
-| PolicyResult structure | Not started | |
-| Policy attachment to API keys | Not started | |
-| Default-deny enforcement | Not started | |
-| 5-second timeout + kill on timeout | Not started | Executable policies only |
-| Failure semantics (deny on non-zero exit, bad JSON) | Not started | Executable policies only |
-| Policy actions (`deny` / `warn`) | Not started | |
-| AND semantics (all policies must allow) | Not started | |
-| Spending state tracking | Removed | Was only used for an unimplemented daily cap |
-| `ows policy create` CLI command | Not started | |
-| `ows key create` CLI command | Not started | |
-| Audit log integration for policy results | Not started | |
-| Bug fixes on critical path (path traversal, vault permissions, envelope validation) | Done | |
+| Two-tier access model (owner vs agent) | Done | Passphrase vs `ows_key_...` token (`ows-lib` key path) |
+| API key CLI (`ows key create` / `list` / `revoke`) | Done | |
+| API key file format + storage (`~/.ows/keys/`) | Done | Mnemonic re-encrypted under HKDF(token) |
+| HKDF-SHA256 key derivation for API tokens | Done | |
+| Policy file format + storage (`~/.ows/policies/`) | Done | |
+| Declarative policy rules (`allowed_chains`, `expires_at`) | Done | |
+| Custom executable policy protocol (stdin/stdout) | Done | 5s timeout + kill on timeout |
+| PolicyContext / PolicyResult | Done | `ows-core/src/policy.rs` |
+| Policy attachment to API keys | Done | |
+| Default-deny on executable failures | Done | |
+| AND semantics (all policies must allow) | Done | |
+| `ows policy` CLI (`create`, `list`, `show`, `delete`) | Done | |
+| `PolicyAction::warn` | Not started | JSON policies only support `deny` today |
+| Rich audit entries (policy_id / API key on deny) | Partial | See `audit.jsonl` format in `docs/01-storage-format.md` |
+| Spending state in `PolicyContext` | Partial | Fields exist; declarative daily caps were removed — use an `executable` for spend tracking |
 
-**This spec is unimplemented.** The policy engine is the core security boundary for agent access and is the highest-priority gap.
+**Implemented in** `ows-cli`, `ows-lib` (`policy_engine`, `policy_store`, `key_store`, `key_ops`). See [policy-engine-implementation.md](policy-engine-implementation.md) for design history. Some **spec** items (warn action, richer audit) are still open.
 
 ## Design Decision
 
