@@ -1,9 +1,3 @@
-use ows_core::EncryptedWallet;
-
-use crate::CliError;
-
-// Delegate vault operations to ows-lib, using the default vault path.
-
-pub fn load_wallet_by_name_or_id(name_or_id: &str) -> Result<EncryptedWallet, CliError> {
-    Ok(ows_lib::vault::load_wallet_by_name_or_id(name_or_id, None)?)
-}
+// CLI vault helpers — delegates to ows-lib with default vault path.
+// Functions removed during signing-path unification (PR 1); the CLI now
+// calls ows_lib::decrypt_signing_key directly.

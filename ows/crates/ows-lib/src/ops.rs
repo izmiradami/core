@@ -542,7 +542,10 @@ pub fn sign_encode_and_broadcast(
 // --- internal helpers ---
 
 /// Decrypt a wallet and return the private key for the given chain.
-fn decrypt_signing_key(
+///
+/// This is the single code path for resolving a credential into key material.
+/// Both the library's high-level signing functions and the CLI delegate here.
+pub fn decrypt_signing_key(
     wallet_name_or_id: &str,
     chain_type: ChainType,
     passphrase: &str,
@@ -563,7 +566,7 @@ fn decrypt_signing_key(
             let signer = signer_for_chain(chain_type);
             let path = signer.default_derivation_path(index.unwrap_or(0));
             let curve = signer.curve();
-            Ok(HdDeriver::derive_from_mnemonic(
+            Ok(HdDeriver::derive_from_mnemonic_cached(
                 &mnemonic, "", &path, curve,
             )?)
         }
