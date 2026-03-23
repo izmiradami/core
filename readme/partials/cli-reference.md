@@ -13,5 +13,10 @@
 | `ows fund balance` | Check token balances for a wallet |
 | `ows mnemonic generate` | Generate a BIP-39 mnemonic phrase |
 | `ows mnemonic derive` | Derive an address from a mnemonic |
+| `ows policy create` | Register a policy from a JSON file |
+| `ows policy list` | List all registered policies |
+| `ows key create` | Create an API key for agent access |
+| `ows key list` | List all API keys |
+| `ows key revoke` | Revoke an API key |
 | `ows update` | Update ows and bindings |
 | `ows uninstall` | Remove ows from the system |

@@ -3,17 +3,17 @@
 ```
 Agent / CLI / App
        │
-       │  OWS Interface (MCP / SDK / CLI)
+       │  OWS Interface (SDK / CLI)
        ▼
 ┌─────────────────────┐
-│    Access Layer      │     1. Agent calls ows.sign()
-│  ┌────────────────┐  │     2. Policy engine evaluates
-│  │ Policy Engine   │  │     3. Key decrypted in memory
+│    Access Layer      │     1. Caller invokes sign()
+│  ┌────────────────┐  │     2. Policy engine evaluates for API tokens
+│  │ Policy Engine   │  │     3. Key decrypted in hardened memory
 │  │ (pre-signing)   │  │     4. Transaction signed
 │  └───────┬────────┘  │     5. Key wiped from memory
 │  ┌───────▼────────┐  │     6. Signature returned
 │  │  Signing Core   │  │
-│  │                 │  │     The agent NEVER sees
+│  │   (in-process)  │  │     The caller NEVER sees
 │  └───────┬────────┘  │     the private key.
 │  ┌───────▼────────┐  │
 │  │  Wallet Vault   │  │

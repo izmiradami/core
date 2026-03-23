@@ -27,6 +27,9 @@ All functions return Python dicts:
 
 # SendResult
 {"tx_hash": "0xabc..."}
+
+# ApiKeyResult
+{"token": "ows_...", "id": "key-uuid", "name": "my-key"}  # token shown once — save it
 ```
 
 ## Mnemonic
@@ -35,7 +38,8 @@ All functions return Python dicts:
 from open_wallet_standard import generate_mnemonic, derive_address
 
 phrase = generate_mnemonic(12)         # or 24
-addr = derive_address(phrase, "evm")   # any chain: evm, solana, sui, bitcoin, cosmos, tron, ton
+addr = derive_address(phrase, "evm")   # any chain: evm, solana, sui, bitcoin, cosmos, tron, ton, spark, filecoin
+# derive_address(mnemonic, chain, index=None)
 ```
 
 ## Wallet Management
@@ -99,6 +103,58 @@ tx_sig = sign_transaction("my-wallet", "evm", "02f8...")
 result = sign_and_send("my-wallet", "evm", "02f8...", rpc_url="https://rpc...")
 # result["tx_hash"] => "0x..."
 # sign_and_send(wallet, chain, tx_hex, passphrase=None, index=None, rpc_url=None, vault_path=None)
+```
+
+## EIP-712 Typed Data
+
+```python
+from open_wallet_standard import sign_typed_data
+
+sig = sign_typed_data("my-wallet", "evm", '{"types":...}')
+# sig["signature"] => hex string
+# sig["recovery_id"] => 0 or 1
+# sign_typed_data(wallet, chain, typed_data_json, passphrase=None, index=None, vault_path=None)
+```
+
+## Policy Management
+
+```python
+from open_wallet_standard import create_policy, list_policies, get_policy, delete_policy
+
+# Register a policy from a JSON string
+create_policy('{"id":"my-policy","rules":[...]}')
+# create_policy(policy_json, vault_path=None)
+
+# List all registered policies
+policies = list_policies()  # list_policies(vault_path=None)
+
+# Get a single policy by ID
+policy = get_policy("my-policy")  # get_policy(id, vault_path=None)
+
+# Delete a policy by ID
+delete_policy("my-policy")  # delete_policy(id, vault_path=None)
+```
+
+## API Key Management
+
+```python
+from open_wallet_standard import create_api_key, list_api_keys, revoke_api_key
+
+# Create an API key scoped to specific wallets and policies
+key = create_api_key("claude-agent", ["wallet-id"], ["policy-id"], "passphrase")
+# key["token"] => raw token (shown once — save it)
+# key["id"] => key file ID
+# key["name"] => "claude-agent"
+# create_api_key(name, wallet_ids, policy_ids, passphrase, expires_at=None, vault_path=None)
+
+# Optional: set expiry (ISO-8601)
+tmp_key = create_api_key("tmp", ["wallet-id"], [], "passphrase", expires_at="2026-04-01T00:00:00Z")
+
+# List all API keys (tokens are never returned)
+keys = list_api_keys()  # list_api_keys(vault_path=None)
+
+# Revoke an API key
+revoke_api_key("key-id")  # revoke_api_key(id, vault_path=None)
 ```
 
 ## Custom Vault Path

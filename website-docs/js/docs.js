@@ -1,4 +1,8 @@
 // === Docs config ===
+var QUICKSTART_DOCS = [
+  { slug: 'quickstart', title: 'Quickstart', sidebar: 'Quickstart' },
+];
+
 var SPEC_DOCS = [
   { slug: '01-storage-format',           title: '01 \u2014 Storage Format',           sidebar: '01 \u2014 Storage Format' },
   { slug: '02-signing-interface',         title: '02 \u2014 Signing Interface',         sidebar: '02 \u2014 Signing Interface' },
@@ -15,7 +19,7 @@ var SDK_DOCS = [
   { slug: 'sdk-python', title: 'Python SDK',       sidebar: 'Python' },
 ];
 
-var DOCS = SPEC_DOCS.concat(SDK_DOCS);
+var DOCS = QUICKSTART_DOCS.concat(SPEC_DOCS).concat(SDK_DOCS);
 
 // Vercel build copies docs into website-docs/md/; local dev serves from repo root
 var DOCS_PATHS = ['md', '../docs'];
@@ -64,8 +68,14 @@ function buildSidebar(currentSlug) {
   var sidebar = document.getElementById('docs-sidebar');
   if (!sidebar) return;
 
-  var html = '<div class="docs-sidebar-title">Specification</div>';
+  var html = '';
   html += '<a href="./">Overview</a>';
+  QUICKSTART_DOCS.forEach(function (doc) {
+    var active = doc.slug === currentSlug ? ' class="active"' : '';
+    html += '<a href="doc.html?slug=' + doc.slug + '"' + active + '>' + doc.sidebar + '</a>';
+  });
+
+  html += '<div class="docs-sidebar-title" style="margin-top: 1.5rem;">Specification</div>';
   SPEC_DOCS.forEach(function (doc) {
     var active = doc.slug === currentSlug ? ' class="active"' : '';
     html += '<a href="doc.html?slug=' + doc.slug + '"' + active + '>' + doc.sidebar + '</a>';

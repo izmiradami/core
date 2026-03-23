@@ -1,3 +1,5 @@
+<!-- Generated from readme/templates/node.md + readme/partials/ — edit those, then run readme/generate.sh -->
+
 # @open-wallet-standard/core
 
 Secure signing and wallet management for every chain. One vault, one interface — keys never leave your machine.
@@ -22,7 +24,7 @@ The package is **fully self-contained** — it embeds the Rust core via native F
 import { createWallet, signMessage } from "@open-wallet-standard/core";
 
 const wallet = createWallet("agent-treasury");
-// => accounts for EVM, Solana, Sui, BTC, Cosmos, Tron, TON
+// => accounts for EVM, Solana, Bitcoin, Cosmos, Tron, TON, Filecoin, and Sui
 
 const sig = signMessage("agent-treasury", "evm", "hello");
 console.log(sig.signature);
@@ -31,14 +33,14 @@ console.log(sig.signature);
 ### CLI
 
 ```bash
-# Create a wallet (derives addresses for all supported chains)
+# Create a wallet (derives addresses for the current auto-derived chain set)
 ows wallet create --name "agent-treasury"
 
 # Sign a message
 ows sign message --wallet agent-treasury --chain evm --message "hello"
 
 # Sign a transaction
-ows sign tx --wallet agent-treasury --chain evm --tx-hex "deadbeef..."
+ows sign tx --wallet agent-treasury --chain evm --tx "deadbeef..."
 ```
 
 {{> supported-chains}}

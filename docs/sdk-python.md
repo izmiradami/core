@@ -15,7 +15,7 @@ Prebuilt wheels are available for macOS (arm64, x64) and Linux (x64, arm64) on P
 ## Quick Start
 
 ```python
-from open_wallet_standard import (
+from ows import (
     generate_mnemonic,
     create_wallet,
     list_wallets,
@@ -90,14 +90,14 @@ sol_addr = derive_address(mnemonic, "solana")
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
 | `mnemonic` | `str` | &mdash; | BIP-39 mnemonic phrase |
-| `chain` | `str` | &mdash; | `"evm"`, `"solana"`, `"sui"`, `"bitcoin"`, `"cosmos"`, `"tron"`, `"filecoin"` |
+| `chain` | `str` | &mdash; | `"evm"`, `"solana"`, `"sui"`, `"bitcoin"`, `"cosmos"`, `"tron"`, `"ton"`, `"spark"`, `"filecoin"` |
 | `index` | `int` | `0` | Account index in derivation path |
 
 ### Wallet Management
 
 #### `create_wallet(name, passphrase=None, words=12, vault_path=None)`
 
-Create a new wallet. Derives addresses for all supported chains.
+Create a new wallet. Derives addresses for the current auto-derived chain set.
 
 ```python
 wallet = create_wallet("agent-treasury")
@@ -220,6 +220,8 @@ print(result["recovery_id"]) # 0 or 1
 
 Sign EIP-712 typed structured data (EVM only).
 
+Current implementations support typed-data signing for owner-mode credentials. API-token typed-data signing is not yet supported.
+
 ```python
 import json
 
@@ -264,6 +266,32 @@ result = sign_and_send(
 )
 print(result["tx_hash"])
 ```
+
+## Policy And API Key Management
+
+The Python bindings also expose policy and API-key management directly:
+
+```python
+from ows import (
+    create_policy,
+    list_policies,
+    get_policy,
+    delete_policy,
+    create_api_key,
+    list_api_keys,
+    revoke_api_key,
+)
+```
+
+| Function | Description |
+|----------|-------------|
+| `create_policy(policy_json, vault_path=None)` | Register a policy from a JSON string |
+| `list_policies(vault_path=None)` | List all registered policies |
+| `get_policy(id, vault_path=None)` | Load a single policy by ID |
+| `delete_policy(id, vault_path=None)` | Delete a policy |
+| `create_api_key(name, wallet_ids, policy_ids, passphrase, expires_at=None, vault_path=None)` | Create an API key and return `{"token", "id", "name"}` |
+| `list_api_keys(vault_path=None)` | List API keys (metadata only, no tokens) |
+| `revoke_api_key(id, vault_path=None)` | Delete an API key file |
 
 ## Custom Vault Path
 

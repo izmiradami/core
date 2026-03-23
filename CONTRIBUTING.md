@@ -71,7 +71,7 @@ core/
 │   ├── node/          # Node.js NAPI bindings
 │   └── python/        # Python (PyO3/Maturin) bindings
 ├── docs/              # Specification documents
-└── website/           # Static site (openwalletstandard.org)
+└── website/           # Static site (openwallet.sh)
 ```
 
 ## Reporting Bugs

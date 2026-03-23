@@ -10,9 +10,9 @@ Secure signing and wallet management for every chain. One vault, one interface �
 ## Why OWS
 
 - **Zero key exposure.** Private keys are encrypted at rest, decrypted only after policy checks pass, then immediately wiped from memory. Agents authenticate with scoped API tokens and never see raw key material.
-- **Every chain, one interface.** EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON — all first-class. CAIP-2/CAIP-10 addressing abstracts away chain-specific details.
+- **Every chain, one interface.** EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, Filecoin — all first-class. CAIP-2/CAIP-10 addressing abstracts away chain-specific details.
 - **Policy before signing.** A pre-signing policy engine gates agent (API key) operations — chain allowlists, expiry, and optional custom executables — before any key is touched.
-- **Built for agents.** MCP server, native SDK, and CLI. A wallet created by one tool works in every other.
+- **Built for agents.** Native SDK and CLI today. A wallet created by one tool works in every other.
 
 ## Install
 
@@ -35,31 +35,31 @@ The language bindings are **fully self-contained** — they embed the Rust core 
 ## Quick Start
 
 ```bash
-# Create a wallet (derives addresses for all supported chains)
+# Create a wallet (derives addresses for the current auto-derived chain set)
 ows wallet create --name "agent-treasury"
 
 # Sign a message
 ows sign message --wallet agent-treasury --chain evm --message "hello"
 
 # Sign a transaction
-ows sign tx --wallet agent-treasury --chain evm --tx-hex "deadbeef..."
+ows sign tx --wallet agent-treasury --chain evm --tx "deadbeef..."
 ```
 
 ```javascript
 import { createWallet, signMessage } from "@open-wallet-standard/core";
 
 const wallet = createWallet("agent-treasury");
-// => accounts for EVM, Solana, Sui, BTC, Cosmos, Tron, TON
+// => accounts for EVM, Solana, Bitcoin, Cosmos, Tron, TON, Filecoin, and Sui
 
 const sig = signMessage("agent-treasury", "evm", "hello");
 console.log(sig.signature);
 ```
 
 ```python
-from open_wallet_standard import create_wallet, sign_message
+from ows import create_wallet, sign_message
 
 wallet = create_wallet("agent-treasury")
-# => accounts for EVM, Solana, Sui, BTC, Cosmos, Tron, TON
+# => accounts for EVM, Solana, Bitcoin, Cosmos, Tron, TON, Filecoin, and Sui
 
 sig = sign_message("agent-treasury", "evm", "hello")
 print(sig["signature"])
@@ -70,17 +70,17 @@ print(sig["signature"])
 ```
 Agent / CLI / App
        │
-       │  OWS Interface (MCP / SDK / CLI)
+       │  OWS Interface (SDK / CLI)
        ▼
 ┌─────────────────────┐
 │    Access Layer      │     1. Agent calls ows.sign()
 │  ┌────────────────┐  │     2. Policy engine evaluates
-│  │ Policy Engine   │  │     3. Enclave decrypts key
+│  │ Policy Engine   │  │     3. Key decrypted in memory
 │  │ (pre-signing)   │  │     4. Transaction signed
 │  └───────┬────────┘  │     5. Key wiped from memory
 │  ┌───────▼────────┐  │     6. Signature returned
-│  │ Signing Enclave │  │
-│  │ (isolated proc) │  │     The agent NEVER sees
+│  │  Signing Core   │  │
+│  │   (in-process)  │  │     The agent NEVER sees
 │  └───────┬────────┘  │     the private key.
 │  ┌───────▼────────┐  │
 │  │  Wallet Vault   │  │
@@ -100,6 +100,8 @@ Agent / CLI / App
 | Tron | secp256k1 | base58check | `m/44'/195'/0'/0/0` |
 | TON | Ed25519 | raw/bounceable | `m/44'/607'/0'` |
 | Sui | Ed25519 | 0x + BLAKE2b-256 hex | `m/44'/784'/0'/0'/0'` |
+| Spark (Bitcoin L2) | secp256k1 | spark: prefixed | `m/84'/0'/0'/0/0` |
+| Filecoin | secp256k1 | f1 base32 | `m/44'/461'/0'/0/0` |
 
 ## CLI Reference
 
@@ -116,6 +118,11 @@ Agent / CLI / App
 | `ows fund balance` | Check token balances for a wallet |
 | `ows mnemonic generate` | Generate a BIP-39 mnemonic phrase |
 | `ows mnemonic derive` | Derive an address from a mnemonic |
+| `ows policy create` | Register a policy from a JSON file |
+| `ows policy list` | List all registered policies |
+| `ows key create` | Create an API key for agent access |
+| `ows key list` | List all API keys |
+| `ows key revoke` | Revoke an API key |
 | `ows update` | Update ows and bindings |
 | `ows uninstall` | Remove ows from the system |
 
@@ -126,8 +133,8 @@ The full spec lives in [`docs/`](docs/) and at [openwallet.sh](https://openwalle
 1. [Storage Format](docs/01-storage-format.md) — Vault layout, Keystore v3, filesystem permissions
 2. [Signing Interface](docs/02-signing-interface.md) — sign, signAndSend, signMessage operations
 3. [Policy Engine](docs/03-policy-engine.md) — Pre-signing transaction policies
-4. [Agent Access Layer](docs/04-agent-access-layer.md) — MCP server, native language bindings
-5. [Key Isolation](docs/05-key-isolation.md) — HD derivation paths and key separation
+4. [Agent Access Layer](docs/04-agent-access-layer.md) — Native language bindings and agent access
+5. [Key Isolation](docs/05-key-isolation.md) — Current in-process hardening and future isolation options
 6. [Wallet Lifecycle](docs/06-wallet-lifecycle.md) — Creation, recovery, deletion
 7. [Supported Chains](docs/07-supported-chains.md) — Chain families, CAIP identifiers, RPC endpoints
 

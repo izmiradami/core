@@ -8,7 +8,7 @@
 |---------|--------|-------|
 | `generate_mnemonic(words?)` | Done | 12 or 24 words |
 | `derive_address(mnemonic, chain, index?)` | Done | |
-| `create_wallet(name, chain, passphrase, ...)` | Done | |
+| `create_wallet(name, passphrase?, words?, ...)` | Done | |
 | `import_wallet_mnemonic(...)` | Done | |
 | `import_wallet_private_key(...)` | Done | |
 | `list_wallets(vault_path?)` | Done | |
@@ -21,10 +21,10 @@
 | `sign_and_send(...)` | Done | |
 | Node.js NAPI bindings | Done | `bindings/node/src/lib.rs` |
 | Python PyO3 bindings | Done | `bindings/python/src/lib.rs` |
-| Token-based signing (credential = passphrase or `ows_key_...` token) | Done (CLI) | `ows` CLI + `ows-lib`; language bindings still use passphrase-only APIs |
-| Policy evaluation on agent requests | Done (CLI) | Same split: enforced in `ows-lib` for CLI agent path |
-| API key management (`create_api_key`, `list_api_keys`, `revoke_api_key`) | Done (CLI) | `ows key` commands; not yet in Node/Python bindings |
-| Policy management (`create_policy`, `list_policies`, `delete_policy`) | Done (CLI) | `ows policy` commands; not yet in Node/Python bindings |
+| Token-based signing (credential = passphrase or `ows_key_...` token) | Done | CLI and bindings route through `ows-lib`; token-based typed-data signing is the remaining exception |
+| Policy evaluation on agent requests | Done | Enforced in `ows-lib` before API-token decryption |
+| API key management (`create_api_key`, `list_api_keys`, `revoke_api_key`) | Done | Available in CLI and Node/Python bindings |
+| Policy management (`create_policy`, `list_policies`, `get_policy`, `delete_policy`) | Done | Available in CLI and Node/Python bindings |
 | MCP server | Not started | |
 | Audit logging from bindings (not just CLI) | Not started | Only CLI logs to audit |
 
@@ -44,8 +44,8 @@ npm install @open-wallet-standard/core
 import { createWallet, listWallets, signMessage, signTransaction, signAndSend } from "@open-wallet-standard/core";
 
 // Create a wallet
-const wallet = createWallet("agent-treasury", "evm", "my-passphrase");
-// => { id, name, chain, address, derivation_path, created_at }
+const wallet = createWallet("agent-treasury", "my-passphrase");
+// => { id, name, accounts, createdAt }
 
 // List all wallets
 const wallets = listWallets();
@@ -66,11 +66,11 @@ pip install open-wallet-standard
 ```
 
 ```python
-from open_wallet_standard import create_wallet, list_wallets, sign_message, sign_transaction, sign_and_send
+from ows import create_wallet, list_wallets, sign_message, sign_transaction, sign_and_send
 
 # Create a wallet
-wallet = create_wallet("agent-treasury", "evm", "my-passphrase")
-# => {"id", "name", "chain", "address", "derivation_path", "created_at"}
+wallet = create_wallet("agent-treasury", "my-passphrase")
+# => {"id", "name", "accounts", "created_at"}
 
 # List all wallets
 wallets = list_wallets()
@@ -86,15 +86,15 @@ result = sign_and_send("agent-treasury", "evm", "<tx-hex>", "my-passphrase")
 
 ### Available Functions
 
-Both bindings expose the same 13 functions:
+Both bindings expose the same current surface:
 
 | Function | Description |
 |---|---|
 | `generate_mnemonic(words?)` | Generate a BIP-39 mnemonic (12 or 24 words) |
 | `derive_address(mnemonic, chain, index?)` | Derive a chain-specific address from a mnemonic |
-| `create_wallet(name, chain, passphrase, words?, vault_path?)` | Create a new wallet (generates mnemonic, encrypts, saves) |
-| `import_wallet_mnemonic(name, chain, mnemonic, passphrase, index?, vault_path?)` | Import a wallet from a mnemonic |
-| `import_wallet_private_key(name, chain, key_hex, passphrase, vault_path?, secp256k1_key?, ed25519_key?)` | Import a wallet from a raw private key (or explicit per-curve keys) |
+| `create_wallet(name, passphrase?, words?, vault_path?)` | Create a new wallet (generates mnemonic, encrypts, saves) |
+| `import_wallet_mnemonic(name, mnemonic, passphrase?, index?, vault_path?)` | Import a wallet from a mnemonic |
+| `import_wallet_private_key(name, key_hex, chain?, passphrase?, vault_path?, secp256k1_key?, ed25519_key?)` | Import a wallet from a raw private key (or explicit per-curve keys) |
 | `list_wallets(vault_path?)` | List all wallets in the vault |
 | `get_wallet(name_or_id, vault_path?)` | Get a single wallet by name or ID |
 | `delete_wallet(name_or_id, vault_path?)` | Delete a wallet |
@@ -102,7 +102,15 @@ Both bindings expose the same 13 functions:
 | `rename_wallet(name_or_id, new_name, vault_path?)` | Rename a wallet |
 | `sign_transaction(wallet, chain, tx_hex, passphrase, index?, vault_path?)` | Sign a transaction |
 | `sign_message(wallet, chain, message, passphrase, encoding?, index?, vault_path?)` | Sign a message |
+| `sign_typed_data(wallet, chain, typed_data_json, passphrase?, index?, vault_path?)` | Sign EIP-712 typed data (EVM only) |
 | `sign_and_send(wallet, chain, tx_hex, passphrase, index?, rpc_url?, vault_path?)` | Sign and broadcast a transaction |
+| `create_policy(json_str, vault_path?)` | Register a policy from a JSON string |
+| `list_policies(vault_path?)` | List all registered policies |
+| `get_policy(id, vault_path?)` | Load a single policy |
+| `delete_policy(id, vault_path?)` | Delete a policy |
+| `create_api_key(name, wallet_ids, policy_ids, passphrase, expires_at?, vault_path?)` | Create an API key and return `{ id, token, name }` |
+| `list_api_keys(vault_path?)` | List API keys (metadata only, no tokens) |
+| `revoke_api_key(id, vault_path?)` | Delete an API key file |
 
 All functions operate on the default vault (`~/.ows/`) unless a custom `vault_path` is provided.
 
@@ -113,20 +121,23 @@ The `passphrase` parameter in signing functions accepts either a wallet passphra
 - **Passphrase** (e.g., `"my-secret"`) → owner mode. Decrypts wallet directly via scrypt. No policy evaluation.
 - **API token** (e.g., `"ows_key_a1b2c3d4..."`) → agent mode. Looks up API key file, evaluates attached policies, decrypts via HKDF. Returns `PolicyDenied` error if policies block the request.
 
-This means existing signing function signatures are unchanged — agents just pass a token where the passphrase goes.
+This means existing signing function signatures are unchanged for transaction and message signing — agents pass a token where the passphrase goes.
+
+> **Current limitation:** EIP-712 typed-data signing via API token is not yet supported. Owner-mode typed-data signing works; token-based typed-data signing currently returns an error.
 
 > **Note:** Because the bindings run in-process, key material is decrypted within the application's address space. For use cases where key isolation is critical, consider running OWS in a separate subprocess.
 
-### New management functions
+### Management functions
 
-Both bindings expose additional functions for policy and API key management:
+Bindings also expose policy and API-key management directly:
 
 | Function | Description |
 |---|---|
 | `create_policy(json_str, vault_path?)` | Register a policy from a JSON string |
 | `list_policies(vault_path?)` | List all registered policies |
+| `get_policy(id, vault_path?)` | Load one policy by ID |
 | `delete_policy(id, vault_path?)` | Delete a policy |
-| `create_api_key(name, wallet, passphrase, policies, vault_path?)` | Create an API key. Returns `{ id, token }`. Token shown once. |
+| `create_api_key(name, wallet_ids, policy_ids, passphrase, expires_at?, vault_path?)` | Create an API key. Returns `{ id, token, name }`. Token shown once. |
 | `list_api_keys(vault_path?)` | List API keys (metadata only, no tokens) |
 | `revoke_api_key(id, vault_path?)` | Delete an API key file |
 
@@ -146,11 +157,10 @@ Agent: "I need to send 0.01 ETH to 0x4B08... on Base"
    → SHA256(token) → looks up API key file
    → Verifies "agent-treasury" is in key's wallet_ids
    → Loads policies: ["spending-limit"]
-   → Evaluates: spending limit check passes (0.01 ETH < 1.0 ETH daily)
+   → Evaluates attached policies
    → HKDF(token) → decrypts mnemonic from key file
    → Signs transaction, wipes key material
    → Broadcasts to Base RPC
-   → Records spend in policy state
    → Returns: { tx_hash: "0xabc..." }
 ```
 

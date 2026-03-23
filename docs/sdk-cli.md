@@ -29,7 +29,7 @@ ows wallet create --name "my-wallet"
 | Flag | Description |
 |------|-------------|
 | `--name <NAME>` | Wallet name (required) |
-| `--passphrase <PASS>` | Encryption passphrase (prompted if omitted) |
+| `--show-mnemonic` | Display the generated mnemonic once at creation time |
 | `--words <12\|24>` | Mnemonic word count (default: 12) |
 
 Output:
@@ -58,10 +58,10 @@ echo "4c0883a691..." | ows wallet import --name "from-evm" --private-key
 # Import an Ed25519 key (e.g. from Solana)
 echo "9d61b19d..." | ows wallet import --name "from-sol" --private-key --chain solana
 
-# Import explicit keys for both curves (no stdin needed)
-ows wallet import --name "both" \
-  --secp256k1-key "4c0883a691..." \
-  --ed25519-key "9d61b19d..."
+# Import explicit keys for both curves via environment variables
+OWS_SECP256K1_KEY="4c0883a691..." \
+OWS_ED25519_KEY="9d61b19d..." \
+  ows wallet import --name "both"
 ```
 
 | Flag | Description |
@@ -71,10 +71,10 @@ ows wallet import --name "both" \
 | `--private-key` | Import a raw private key |
 | `--chain <CHAIN>` | Source chain for private key import (determines curve, default: evm) |
 | `--index <N>` | Account index for HD derivation (mnemonic only, default: 0) |
-| `--secp256k1-key <HEX>` | Explicit secp256k1 private key. When combined with `--ed25519-key`, `--private-key` is not required. |
-| `--ed25519-key <HEX>` | Explicit Ed25519 private key. When combined with `--secp256k1-key`, `--private-key` is not required. |
+| `OWS_SECP256K1_KEY` | Explicit secp256k1 private key via environment variable |
+| `OWS_ED25519_KEY` | Explicit Ed25519 private key via environment variable |
 
-Private key imports generate all 8 chain accounts: the provided key is used for its curve's chains, and a random key is generated for the other curve. Use `--secp256k1-key` and `--ed25519-key` together to supply both keys explicitly.
+Private key imports generate all 8 chain accounts: the provided key is used for its curve's chains, and a random key is generated for the other curve. Use `OWS_SECP256K1_KEY` and `OWS_ED25519_KEY` together to supply both keys explicitly.
 
 ### `ows wallet export`
 
@@ -231,10 +231,10 @@ OWS_PASSPHRASE="ows_key_a1b2c3d4..." \
   ows sign tx --wallet agent-treasury --chain ethereum --tx 0x02f8...
 # error: policy denied: chain eip155:1 not in allowlist
 
-# Owner signs on any chain — no policy enforcement
-OWS_PASSPHRASE="" \
+# Owner signs with the wallet passphrase — no policy enforcement
+OWS_PASSPHRASE="your-wallet-passphrase" \
   ows sign tx --wallet agent-treasury --chain ethereum --tx 0x02f8...
-# Works fine — owner mode bypasses all policies
+# Owner mode bypasses all policies
 
 # Revoke the agent's access
 ows key revoke --id <key-id> --confirm
@@ -254,10 +254,11 @@ ows sign message --wallet "my-wallet" --chain evm --message "hello world"
 | Flag | Description |
 |------|-------------|
 | `--wallet <NAME>` | Wallet name or ID |
-| `--chain <CHAIN>` | Chain family: `evm`, `solana`, `sui`, `bitcoin`, `cosmos`, `tron` |
+| `--chain <CHAIN>` | Chain family or supported alias / CAIP-2 ID |
 | `--message <MSG>` | Message to sign |
-| `--passphrase <PASS>` | Decryption passphrase |
 | `--encoding <ENC>` | Message encoding: `utf8` (default) or `hex` |
+| `--typed-data <JSON>` | EIP-712 typed data JSON (EVM only) |
+| `--json` | Output structured JSON |
 
 ### `ows sign tx`
 
@@ -272,7 +273,9 @@ ows sign tx --wallet "my-wallet" --chain evm --tx "02f8..."
 | `--wallet <NAME>` | Wallet name or ID |
 | `--chain <CHAIN>` | Chain family |
 | `--tx <HEX>` | Hex-encoded transaction bytes |
-| `--passphrase <PASS>` | Decryption passphrase |
+| `--json` | Output structured JSON |
+
+Passphrases and API tokens are supplied via `OWS_PASSPHRASE` or an interactive prompt, not a dedicated `--passphrase` flag.
 
 ## Mnemonic Commands
 

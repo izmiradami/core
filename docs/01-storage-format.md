@@ -155,7 +155,7 @@ Each API key is stored as a JSON file in `~/.ows/keys/`. The key file contains m
 |---|---|---|---|
 | `id` | string | yes | UUID v4 key identifier |
 | `name` | string | yes | Human-readable label for the key |
-| `token_hash` | string | yes | SHA-256 hex digest of the raw token. The raw token (`ows_key_...`) is shown once at creation and never stored. |
+| `token_hash` | string | yes | SHA-256 hex digest of the raw token. The raw token (`ows_key_<64 hex chars>`) is shown once at creation and never stored. |
 | `created_at` | string | yes | ISO 8601 creation timestamp |
 | `wallet_ids` | array | yes | Wallet IDs this key is authorized to access |
 | `policy_ids` | array | yes | Policy IDs evaluated on every request made with this key |
@@ -237,9 +237,9 @@ All signing operations are appended to `~/.ows/logs/audit.jsonl`:
 }
 ```
 
-Supported operations: `create_wallet`, `import_wallet`, `export_wallet`, `broadcast_transaction`, `delete_wallet`, `rename_wallet`, `policy_evaluated`, `policy_denied`, `policy_timeout`.
+Current CLI audit operations include `create_wallet`, `import_wallet`, `export_wallet`, `broadcast_transaction`, `delete_wallet`, and `rename_wallet`.
 
-All fields except `timestamp`, `wallet_id`, and `operation` are optional. Policy-related entries may include `api_key_id` and `policy_id` fields.
+All fields except `timestamp`, `wallet_id`, and `operation` are optional.
 
 The audit log is append-only. Implementations MUST NOT allow deletion or modification of existing entries. Log rotation is permitted (e.g., monthly archives).
 

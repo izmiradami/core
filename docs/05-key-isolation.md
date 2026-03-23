@@ -1,6 +1,6 @@
 # 05 - Key Isolation
 
-> How OWS prevents private keys from leaking to agents, LLMs, logs, or parent processes.
+> How OWS reduces private-key exposure to agents, LLMs, logs, and local process risks.
 
 ## Implementation Status
 
@@ -14,7 +14,7 @@
 | Key cache with TTL + LRU eviction | Done | `ows-signer/src/key_cache.rs` (5s TTL, 32 entries) |
 | Subprocess signing enclave (child process) | Future | Optional enhancement — not a prerequisite for policy enforcement |
 | Unix domain socket / pipe IPC | Future | |
-| Passphrase delivery: env var (`OWS_PASSPHRASE`) with immediate clear | Partial | Passphrase passed as param, not read from env |
+| Passphrase delivery: env var (`OWS_PASSPHRASE`) with immediate clear | Partial | CLI supports env + prompt; bindings take the credential as a parameter |
 
 **Note:** The current implementation provides in-process hardening (mlock, zeroize, anti-debug) but does NOT implement the subprocess isolation model described below. Keys are decrypted within the calling process's address space. Policy enforcement (see [03-policy-engine.md](03-policy-engine.md)) is handled by the code path, not by process isolation.
 
@@ -22,55 +22,53 @@ The subprocess enclave is an **optional future enhancement** for key exfiltratio
 
 ## Design Decision
 
-**OWS mandates that key material is decrypted and used exclusively inside an isolated signing process. The parent process (agent, CLI, app) never has access to plaintext keys. This follows the principle that agents should be able to _use_ wallets without being able to _extract_ keys.**
+**OWS currently uses in-process hardening for key handling.** Key material is decrypted only after the relevant checks pass, used for signing, and zeroized immediately after use. The current implementation relies on process hardening (`mlock`, zeroization, anti-debugging, core-dump disabling) plus the policy-gated signing path for agent credentials. A subprocess signing enclave remains an optional future enhancement, not the current execution model.
 
-### Why Process Isolation
+### Why This Model
 
-The fundamental threat in agent wallet systems is that the agent (or the LLM driving it) could exfiltrate the private key — intentionally via prompt injection, or accidentally via logging/context leakage. We evaluated four isolation strategies:
+The primary threat in agent wallet systems is misuse through prompt injection, runaway automation, or weak operational controls. The current implementation addresses that threat with credential-scoped access and policy evaluation before decryption, while using local memory-hardening techniques to reduce exposure during signing. We evaluated four isolation strategies:
 
 | Strategy | Security | Performance | Complexity | Used By |
 |---|---|---|---|---|
 | In-process encryption only | Low — keys in same address space | Fast | Low | Most local keystores |
 | TEE enclaves (AWS Nitro, SGX) | Very high — hardware isolation | Fast | High (requires cloud) | Privy, Turnkey, Coinbase |
 | MPC/threshold signatures | High — key never reconstituted | Slow (multi-round) | Very high | Lit Protocol |
-| **Subprocess isolation** | High — OS-level memory isolation | Fast | Medium | OWS reference impl |
+| **Subprocess isolation** | High — OS-level memory isolation | Fast | Medium | Future OWS enhancement |
 
-OWS targets local-first deployments where cloud TEEs aren't available. Subprocess isolation provides strong guarantees using standard OS primitives:
-- The signing process runs as a separate OS process
-- Communication happens over a Unix domain socket or stdin/stdout pipe
-- The parent process sends serialized transactions and receives signatures
-- Key material exists only in the child process's memory, which is inaccessible to the parent
+OWS targets local-first deployments where cloud TEEs are not required. Today that means:
+- The signer runs in the same process as the CLI or language binding
+- Agent credentials (`ows_key_...`) trigger policy evaluation before key material is decrypted
+- Decrypted key material is stored in hardened memory and zeroized on drop
+- Process hardening reduces debugging, core-dump, and swap exposure
 
-For deployments where hardware enclaves are available, the signing subprocess can be replaced with a TEE-backed implementation — the interface is identical.
+For deployments that need a stronger process boundary, the future subprocess enclave can be added without changing the wallet or policy model.
 
-## Architecture
+## Current Architecture
 
 ```
-┌─────────────────────────────────┐     ┌──────────────────────────────┐
-│        Agent / CLI / App        │     │      Signing Enclave         │
-│                                 │     │      (child process)         │
-│  1. Build transaction           │     │                              │
-│  2. Call ows.sign(req)  ───────────►  │  5. Decrypt key (KDF+AES)   │
-│                                 │     │  6. Sign transaction         │
-│                                 │     │  7. Wipe key from memory     │
-│  9. Receive signature  ◄───────────  │  8. Return signature         │
-│  10. Broadcast tx               │     │                              │
-│                                 │     │  Key material NEVER leaves   │
-│  Has: wallet IDs, addresses,    │     │  this process boundary.      │
-│  policies, chain configs        │     │                              │
-│                                 │     │  Has: encrypted wallet files, │
-│  Does NOT have: private keys,   │     │  KDF params, passphrase      │
-│  mnemonics, seed phrases        │     │                              │
-└─────────────────────────────────┘     └──────────────────────────────┘
-         │                                        │
-         │    Unix Domain Socket / Pipe           │
-         │    (~/.ows/enclave.sock)                │
-         └────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│           Agent / CLI / App Process        │
+│                                            │
+│  1. Build transaction or message           │
+│  2. Call OWS signing API                   │
+│  3. If credential is `ows_key_...`:        │
+│     evaluate attached policies             │
+│  4. Decrypt wallet secret in hardened mem  │
+│  5. Derive chain-specific signing key      │
+│  6. Sign payload                           │
+│  7. Zeroize key material                   │
+│  8. Return signature / signed tx           │
+│                                            │
+│  Stored on disk: encrypted wallet files,   │
+│  API key files, policies, config           │
+└────────────────────────────────────────────┘
 ```
 
-## Enclave Protocol
+## Future Enclave Protocol
 
-The signing enclave communicates via a simple JSON-RPC protocol over its transport (Unix socket or stdin/stdout):
+The subprocess enclave model described below is a possible future transport for the same signing flow. It is **not implemented today**.
+
+A future signing enclave could communicate via a simple JSON-RPC protocol over its transport (Unix socket or stdin/stdout):
 
 ### Request
 
@@ -111,51 +109,48 @@ The signing enclave communicates via a simple JSON-RPC protocol over its transpo
 | `lock` | Wipe all decrypted material and require re-authentication |
 | `status` | Check if the enclave is unlocked and healthy |
 
-## Key Lifecycle Within the Enclave
+## Key Lifecycle in the Current Implementation
 
 ```
-1. Enclave receives sign request
-2. Read encrypted wallet file from disk
-3. Derive decryption key from passphrase via KDF (scrypt/PBKDF2)
-4. Decrypt key material (mnemonic or private key)
-5. Derive chain-specific key via BIP-44 path (if mnemonic)
-6. Sign the payload
-7. IMMEDIATELY zero out:
-   - Decrypted mnemonic/private key bytes
-   - Derived chain key bytes
-   - KDF-derived decryption key bytes
-8. Return only the signature and signed payload
+1. OWS receives a sign request
+2. If the credential is an API token, evaluate attached policies before decryption
+3. Read the encrypted wallet or API-key-backed secret from disk
+4. Derive the decryption key (scrypt for passphrases, HKDF for API tokens)
+5. Decrypt key material (mnemonic or private key) into hardened memory
+6. Derive the chain-specific signing key if needed
+7. Sign the payload
+8. Immediately zero out decrypted mnemonic/private key bytes, derived signing key bytes, and KDF-derived key bytes
+9. Return only the signature or signed payload
 ```
 
-Step 7 is critical. Implementations MUST zero key material immediately after signing, not at garbage collection time. In languages with GC (JavaScript, Go), this means using typed arrays (`Uint8Array`) and explicitly filling with zeros. In Rust/C, this means `memset_explicit` or equivalent.
+Immediate zeroization is critical. In the current Rust implementation this is handled with dedicated secret containers and drop-time zeroization.
 
 ## Passphrase Handling
 
-The enclave needs the vault passphrase to decrypt wallet files. OWS supports three passphrase delivery mechanisms:
+OWS does not currently implement a separate unlockable enclave process. Instead, credentials are supplied to the current process and used per request.
 
-### 1. Interactive Prompt (CLI mode)
-The enclave prompts for the passphrase on its own TTY. The passphrase never passes through the parent process.
+### 1. Interactive prompt (CLI mode)
+The CLI can prompt for the passphrase when it is needed.
 
-### 2. File Descriptor (recommended for daemon mode)
-The passphrase is written to a file descriptor inherited by the enclave process. This is the RECOMMENDED delivery mechanism for non-interactive use because the passphrase never appears in process environment listings or `/proc/[pid]/environ`.
+### 2. Environment variable (CLI mode)
+The CLI reads `OWS_PASSPHRASE` and clears it immediately after reading.
 
-### 3. Environment Variable (fallback for daemon mode)
-The enclave reads `OWS_PASSPHRASE` from its own environment. After reading, the enclave MUST immediately clear it from its own environment.
+### 3. Function parameter (bindings)
+The Node and Python bindings accept the credential as a function parameter. That credential may be either the owner's passphrase or an `ows_key_...` API token.
 
-> **Warning:** Environment variables are the least secure delivery mechanism. They are readable in `/proc/[pid]/environ` by any process running as the same user, appear in crash dumps, and are inherited by child processes. Use file descriptor delivery (option 2) when possible. If `OWS_PASSPHRASE` must be used, implementations MUST clear the variable from the process environment immediately after reading it.
+> **Warning:** Environment variables remain the weakest supported delivery mechanism. They are convenient for automation but can leak via process inspection, crash dumps, or child-process inheritance if not cleared promptly.
 
 ## Threat Model
 
 | Threat | Mitigation |
 |---|---|
-| Agent/LLM exfiltrates key via prompt | Keys never in agent's address space or context |
-| Parent process reads child memory | OS enforces process memory isolation (ptrace protections) |
-| Key leaked to logs | Enclave has no logging of key material; audit log only records operations |
-| Core dump contains keys | Enclave disables core dumps (`prctl(PR_SET_DUMPABLE, 0)` on Linux, `PT_DENY_ATTACH` on macOS) |
-| Swap file contains keys | Enclave MUST `mlock()` key material pages to prevent swapping. Implementations MUST log a warning if `mlock()` fails (e.g., due to `RLIMIT_MEMLOCK` limits). |
-| Cold boot / memory forensics | Keys wiped immediately after signing; window of exposure is milliseconds |
-| Compromised enclave binary | Binary integrity can be verified via checksum; future: code signing |
-| Passphrase brute force | Scrypt with n=262144 makes brute force computationally expensive |
+| Agent/LLM misuses a wallet via automation | API tokens scope access and trigger policy checks before decryption |
+| Key leaked to logs | OWS does not log key material; audit logging records operations only |
+| Core dump contains keys | Process hardening disables core dumps / attach where supported |
+| Swap file contains keys | Hardened secret buffers use `mlock()` where available; failures should be treated as reduced hardening |
+| Cold boot / memory forensics | Keys are zeroized immediately after signing; exposure window is short |
+| Compromised process memory | **Not fully mitigated in the current model.** This is the main gap a future subprocess enclave would address |
+| Passphrase brute force | Scrypt slows offline guessing; current wallet envelopes use a minimum work factor of `2^16` |
 
 ## Defense in Depth
 
@@ -170,7 +165,7 @@ All backends implement the same enclave protocol, making them drop-in replacemen
 
 ## Key Caching for Batch Performance
 
-Decrypting key material via scrypt (n=262144) takes ~0.5–1s per operation by design. For agents that send batches of transactions, this would create unacceptable latency if the KDF ran per-request.
+Decrypting key material via scrypt is intentionally non-trivial. That cost improves passphrase resistance, but it also adds noticeable latency if repeated for every request in a batch.
 
 Implementations SHOULD maintain a short-lived, in-memory cache of derived key material with the following constraints:
 
@@ -182,7 +177,7 @@ Implementations SHOULD maintain a short-lived, in-memory cache of derived key ma
 | Signal handling | Cache MUST be cleared on SIGTERM, SIGINT, and SIGHUP before process exit |
 | Cache key | Derived from `SHA-256(mnemonic \|\| passphrase \|\| derivation_path \|\| curve)` — never the raw mnemonic |
 
-The vault `unlock` operation (see [Enclave Protocol](#enclave-protocol)) also establishes a session that avoids repeated passphrase prompts, complementing the key cache for interactive workflows.
+The current implementation does not expose a vault unlock session. If the future enclave model is added, an explicit unlock/lock workflow could complement the key cache for interactive workflows.
 
 ## Comparison with Industry Approaches
 
@@ -194,7 +189,7 @@ The vault `unlock` operation (see [Enclave Protocol](#enclave-protocol)) also es
 | Lit Protocol | Distributed key generation across nodes | No (network) |
 | Crossmint | Dual-key smart contract + TEE | No (cloud) |
 | Phala Wallet | TEE (Intel SGX) on decentralized cloud | No (cloud) |
-| **OWS** | **OS process isolation + optional TEE** | **Yes** |
+| **OWS** | **In-process hardening today; optional subprocess / TEE later** | **Yes** |
 
 OWS is the only standard designed for local-first operation. The in-process model works on any machine with no additional infrastructure. When stronger guarantees are needed, the subprocess enclave can be added without changing the signing interface.
 

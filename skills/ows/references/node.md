@@ -30,6 +30,12 @@ interface SignResult {
 interface SendResult {
   txHash: string;
 }
+
+interface ApiKeyResult {
+  token: string;          // Raw token (shown once — caller must save it)
+  id: string;             // Key file ID
+  name: string;
+}
 ```
 
 ## Mnemonic
@@ -38,7 +44,7 @@ interface SendResult {
 import { generateMnemonic, deriveAddress } from "@open-wallet-standard/core";
 
 const phrase = generateMnemonic(12);       // or 24
-const addr = deriveAddress(phrase, "evm"); // any chain: evm, solana, sui, bitcoin, cosmos, tron, ton
+const addr = deriveAddress(phrase, "evm"); // any chain: evm, solana, sui, bitcoin, cosmos, tron, ton, spark, filecoin
 ```
 
 ## Wallet Management
@@ -101,6 +107,58 @@ const txSig = signTransaction("my-wallet", "evm", "02f8...");
 const result = signAndSend("my-wallet", "evm", "02f8...", undefined, undefined, "https://rpc...");
 // result.txHash => "0x..."
 // signAndSend(wallet, chain, txHex, passphrase?, index?, rpcUrl?, vaultPath?)
+```
+
+## EIP-712 Typed Data
+
+```javascript
+import { signTypedData } from "@open-wallet-standard/core";
+
+const sig = signTypedData("my-wallet", "evm", '{"types":...}');
+// sig.signature => hex string
+// sig.recoveryId => 0 or 1
+// signTypedData(wallet, chain, typedDataJson, passphrase?, index?, vaultPath?)
+```
+
+## Policy Management
+
+```javascript
+import { createPolicy, listPolicies, getPolicy, deletePolicy } from "@open-wallet-standard/core";
+
+// Register a policy from a JSON string
+createPolicy('{"id":"my-policy","rules":[...]}');
+// createPolicy(policyJson, vaultPath?)
+
+// List all registered policies
+const policies = listPolicies(); // listPolicies(vaultPath?)
+
+// Get a single policy by ID
+const policy = getPolicy("my-policy"); // getPolicy(id, vaultPath?)
+
+// Delete a policy by ID
+deletePolicy("my-policy"); // deletePolicy(id, vaultPath?)
+```
+
+## API Key Management
+
+```javascript
+import { createApiKey, listApiKeys, revokeApiKey } from "@open-wallet-standard/core";
+
+// Create an API key scoped to specific wallets and policies
+const key = createApiKey("claude-agent", ["wallet-id"], ["policy-id"], "passphrase");
+// key.token => raw token (shown once — save it)
+// key.id => key file ID
+// key.name => "claude-agent"
+// createApiKey(name, walletIds, policyIds, passphrase, expiresAt?, vaultPath?)
+
+// Optional: set expiry (ISO-8601)
+const tmpKey = createApiKey("tmp", ["wallet-id"], [], "passphrase", "2026-04-01T00:00:00Z");
+
+// List all API keys (tokens are never returned)
+const keys = listApiKeys(); // listApiKeys(vaultPath?)
+
+// Revoke an API key
+revokeApiKey("key-id"); // revokeApiKey(id, vaultPath?)
 ```
 
 ## Custom Vault Path

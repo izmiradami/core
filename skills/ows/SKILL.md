@@ -87,10 +87,9 @@ echo "goose puzzle decorate ..." | ows wallet import --name "imported" --mnemoni
 echo "4c0883a691..." | ows wallet import --name "from-evm" --private-key
 echo "9d61b19d..." | ows wallet import --name "from-sol" --private-key --chain solana
 
-# Import explicit keys for both curves
-ows wallet import --name "both" \
-  --secp256k1-key "4c0883a691..." \
-  --ed25519-key "9d61b19d..."
+# Import explicit keys for both curves (via env vars)
+OWS_SECP256K1_KEY="4c0883a691..." OWS_ED25519_KEY="9d61b19d..." \
+  ows wallet import --name "both"
 
 # List / info / export / delete / rename
 ows wallet list

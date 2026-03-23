@@ -78,10 +78,10 @@ When the owner creates an API key, OWS decrypts the wallet mnemonic using the ow
 
 ### Key derivation (HKDF-SHA256)
 
-API tokens are 256-bit random values (`ows_key_<base62>`). Since they are already high-entropy, we use HKDF-SHA256 instead of scrypt:
+API tokens are 256-bit random values (`ows_key_<64 hex chars>`). Since they are already high-entropy, we use HKDF-SHA256 instead of scrypt:
 
 ```
-token = ows_key_<random 256 bits, base62-encoded>
+token = ows_key_<random 256 bits, hex-encoded>
 salt  = random 32 bytes (stored in CryptoEnvelope)
 prk   = HKDF-Extract(salt, token)
 key   = HKDF-Expand(prk, "ows-api-key-v1", 32)  →  AES-256-GCM key
@@ -110,7 +110,7 @@ ows key create --name "claude-agent" --wallet agent-treasury --policy spending-l
 
 1. Owner enters wallet passphrase
 2. OWS decrypts the wallet mnemonic using scrypt(passphrase)
-3. Generates random token: `T = "ows_key_" + base62(random 256 bits)`
+3. Generates random token: `T = "ows_key_" + hex(random 256 bits)`
 4. Generates random salt S
 5. Derives key: `K = HKDF-SHA256(S, T, "ows-api-key-v1", 32)`
 6. Encrypts mnemonic with K via AES-256-GCM
@@ -128,15 +128,14 @@ Agent calls: sign_transaction(wallet, chain, tx, "ows_key_a1b2c3...")
 3. Check expires_at (if set)
 4. Verify wallet is in key's wallet_ids scope
 5. Load policies from key's policy_ids
-6. Build PolicyContext(tx, chain, wallet, spending state, key_id)
+6. Build `PolicyContext` (chain ID, wallet ID, API key ID, transaction context, spending context, timestamp)
 7. Evaluate all policies (AND semantics, short-circuit on first deny)
 8. If denied → return POLICY_DENIED error (key material never touched)
 9. HKDF-SHA256(salt, token) → AES key → decrypt mnemonic from key.wallet_secrets
 10. HD-derive chain-specific key
 11. Sign transaction
 12. Zeroize mnemonic and derived key
-13. Log to audit
-14. Return signature
+13. Return signature
 ```
 
 ### Revocation
@@ -187,7 +186,7 @@ echo '<PolicyContext JSON>' | /path/to/policy-executable
 - The executable receives the full `PolicyContext` as a single JSON object on stdin
 - The executable MUST write a single `PolicyResult` JSON object to stdout
 - A non-zero exit code is treated as a denial
-- Stderr is captured and logged to the audit log but does not affect the verdict
+- Stderr is captured by the evaluation path and may be surfaced in denial details; current implementations do not emit dedicated audit entries for every policy event
 
 ### Evaluation order within a policy
 
@@ -229,61 +228,45 @@ Policies are JSON files stored in `~/.ows/policies/`:
 | `rules` | array | no | Declarative rules (see above). Evaluated in-process. |
 | `executable` | string | no | Absolute path to a custom policy executable |
 | `config` | object | no | Static configuration passed to the executable via `PolicyContext.policy_config` |
-| `action` | string | yes | `"deny"` or `"warn"` — what happens when the policy returns `allow: false` |
+| `action` | string | yes | Currently `"deny"` only. Denied policies block the request. |
 
-A policy MUST have at least one of `rules` or `executable`. If `executable` is set, it MUST be a file with execute permission. Implementations MUST verify the executable exists and is executable at policy creation time.
+A policy MUST have at least one of `rules` or `executable`. If `executable` is set, it MUST point to an executable file when the policy is evaluated.
 
 ## PolicyContext
 
-The JSON object available to both declarative evaluation and custom executables:
+The base JSON object available to policy evaluation:
 
 ```json
 {
-  "operation": "sign_transaction",
+  "chain_id": "eip155:8453",
+  "wallet_id": "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+  "api_key_id": "7a2f1b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
   "transaction": {
     "to": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD0C",
     "value": "100000000000000000",
-    "data": "0x",
-    "raw_hex": "02f8..."
+    "raw_hex": "0x02f8...",
+    "data": "0x"
   },
-  "chain_id": "eip155:8453",
-  "wallet": {
-    "id": "3198bc9c-6672-5ab3-d995-4942343ae5b6",
-    "name": "agent-treasury",
-    "accounts": [
-      {
-        "account_id": "eip155:8453:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb",
-        "address": "0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb",
-        "chain_id": "eip155:8453"
-      }
-    ]
-  },
-  "timestamp": "2026-03-22T10:35:22Z",
-  "key_id": "7a2f1b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
-  "key_name": "claude-agent",
   "spending": {
-    "daily_total_wei": "50000000000000000",
-    "daily_remaining_wei": "950000000000000000"
+    "daily_total": "50000000000000000",
+    "date": "2026-03-22"
   },
-  "policy_config": {}
+  "timestamp": "2026-03-22T10:35:22Z"
 }
 ```
 
 | Field | Type | Always Present | Description |
 |---|---|---|---|
-| `operation` | string | yes | `"sign_transaction"`, `"sign_message"`, or `"sign_typed_data"` |
-| `transaction` | object | yes | Chain-specific transaction fields. EVM includes parsed `to`, `value`, `data`. All chains include `raw_hex`. |
 | `chain_id` | string | yes | CAIP-2 chain identifier |
-| `wallet` | object | yes | Wallet descriptor (id, name, accounts — never key material) |
+| `wallet_id` | string | yes | Wallet ID in scope for this request |
+| `api_key_id` | string | yes | The ID of the API key making this request |
+| `transaction` | object | yes | Transaction context. EVM includes parsed `to`, `value`, and `data` when available. All chains include `raw_hex`. |
+| `spending` | object | yes | Lightweight spending metadata currently exposed by the engine |
 | `timestamp` | string | yes | ISO 8601 timestamp of the signing request |
-| `key_id` | string | yes | The ID of the API key making this request |
-| `key_name` | string | yes | Human-readable name of the API key |
-| `spending` | object | yes | Current spending state (daily total and remaining budget) |
-| `policy_config` | object | yes | Static `config` from the policy file (empty object if not set) |
 
-The `wallet` field never contains private keys, mnemonics, or encryption parameters.
+For executable policies, the engine injects `policy_config` into the JSON payload when the policy file includes a `config` object.
 
-The `spending` field is populated by the policy engine from its state store. Custom executables can use it without managing their own state.
+The current `spending` payload includes `daily_total` and `date`. It does not currently expose remaining budget or a richer wallet descriptor.
 
 ## PolicyResult
 
@@ -298,7 +281,7 @@ The `spending` field is populated by the policy engine from its state store. Cus
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `allow` | boolean | yes | `true` to permit the transaction, `false` to deny |
-| `reason` | string | no | Human-readable explanation (logged to audit log; returned in error on denial) |
+| `reason` | string | no | Human-readable explanation returned in the denial path |
 
 ## Timeout and Failure Semantics
 
@@ -307,20 +290,21 @@ For custom executable policies only (declarative rules cannot fail in these ways
 | Scenario | Behavior |
 |---|---|
 | Executable exits with code 0, valid JSON on stdout | Use the `PolicyResult` as the verdict |
-| Executable exits with non-zero code | **Deny.** Treat as `{ "allow": false }`. Stderr is logged. |
-| Executable does not produce valid JSON on stdout | **Deny.** Log a parse error to the audit log. |
-| Executable does not exit within 5 seconds | **Deny.** Kill the process. Log a timeout to the audit log. |
-| Executable not found or not executable | **Deny.** Log an error. This is checked at policy creation time to fail early. |
+| Executable exits with non-zero code | **Deny.** Treat as `{ "allow": false }`. |
+| Executable does not produce valid JSON on stdout | **Deny.** |
+| Executable does not exit within 5 seconds | **Deny.** Kill the process. |
+| Executable not found or not executable | **Deny.** |
 | Unknown declarative rule type | **Deny.** Fail closed on unrecognized rules. |
 
 The default-deny stance ensures that policy failures are never silently bypassed.
 
 ## Policy Actions
 
+Current implementations support a single action:
+
 | Action | Behavior |
 |---|---|
 | `deny` | Block the transaction and return a `POLICY_DENIED` error |
-| `warn` | Log a warning to the audit log but allow the transaction to proceed |
 
 ## Policy Attachment
 
@@ -335,7 +319,7 @@ ows key create --name "claude-agent" --wallet agent-treasury --policy base-agent
 # => ows_key_a1b2c3d4e5f6...  (shown once, store securely)
 ```
 
-An API key can have multiple policies attached. All attached policies are evaluated — every policy must allow the transaction for it to proceed (AND semantics). Evaluation short-circuits on the first denial. All denials are logged to the audit log.
+An API key can have multiple policies attached. All attached policies are evaluated — every policy must allow the transaction for it to proceed (AND semantics). Evaluation short-circuits on the first denial.
 
 ## Example: Custom Simulation Policy
 
