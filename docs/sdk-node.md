@@ -320,6 +320,126 @@ console.log(result.txHash);
 
 **Returns:** `SendResult`
 
+### Policy Management
+
+#### `createPolicy(policyJson, vaultPath?)`
+
+Register a policy from a JSON string.
+
+```javascript
+const policy = JSON.stringify({
+  id: "base-only",
+  name: "Base only until April",
+  version: 1,
+  created_at: "2026-03-22T00:00:00Z",
+  rules: [
+    { type: "allowed_chains", chain_ids: ["eip155:8453"] },
+    { type: "expires_at", timestamp: "2026-04-01T00:00:00Z" },
+  ],
+  action: "deny",
+});
+
+createPolicy(policy);
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `policyJson` | `string` | &mdash; | JSON string of the policy definition |
+| `vaultPath` | `string` | `~/.ows/wallets` | Custom vault directory |
+
+#### `listPolicies(vaultPath?)`
+
+List all registered policies.
+
+```javascript
+const policies = listPolicies();
+console.log(policies); // => [{ id: "base-only", name: "Base only until April", ... }]
+```
+
+**Returns:** `object[]`
+
+#### `getPolicy(id, vaultPath?)`
+
+Get a single policy by ID.
+
+```javascript
+const policy = getPolicy("base-only");
+console.log(policy.name); // => "Base only until April"
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | `string` | &mdash; | Policy ID |
+| `vaultPath` | `string` | `~/.ows/wallets` | Custom vault directory |
+
+**Returns:** `object`
+
+#### `deletePolicy(id, vaultPath?)`
+
+Delete a policy by ID.
+
+```javascript
+deletePolicy("base-only");
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | `string` | &mdash; | Policy ID |
+| `vaultPath` | `string` | `~/.ows/wallets` | Custom vault directory |
+
+### API Key Management
+
+#### `createApiKey(name, walletIds, policyIds, passphrase, expiresAt?, vaultPath?)`
+
+Create an API key for agent access to wallets. Returns the raw token (shown once &mdash; caller must save it) and key metadata.
+
+```javascript
+const key = createApiKey(
+  "claude-agent",
+  ["my-wallet"],
+  ["base-only"],
+  "my-passphrase",
+);
+console.log(key.token); // => "ows_key_a1b2c3d4..." (save this)
+console.log(key.id);
+console.log(key.name);
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `string` | &mdash; | Human-readable key name |
+| `walletIds` | `string[]` | &mdash; | Wallet names or IDs this key can access |
+| `policyIds` | `string[]` | &mdash; | Policy IDs to enforce on this key |
+| `passphrase` | `string` | &mdash; | Vault passphrase (needed to re-encrypt wallet secrets for the key) |
+| `expiresAt` | `string` | `undefined` | ISO 8601 expiry timestamp |
+| `vaultPath` | `string` | `~/.ows/wallets` | Custom vault directory |
+
+**Returns:** `ApiKeyResult` &mdash; `{ token: string, id: string, name: string }`
+
+#### `listApiKeys(vaultPath?)`
+
+List all API keys. Tokens are never returned.
+
+```javascript
+const keys = listApiKeys();
+keys.forEach((k) => console.log(k.id, k.name));
+```
+
+**Returns:** `object[]`
+
+#### `revokeApiKey(id, vaultPath?)`
+
+Revoke (delete) an API key by ID.
+
+```javascript
+revokeApiKey("key-id");
+```
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `id` | `string` | &mdash; | API key ID |
+| `vaultPath` | `string` | `~/.ows/wallets` | Custom vault directory |
+
 ## Custom Vault Path
 
 Every function accepts an optional `vaultPath` parameter. When omitted, the default vault at `~/.ows/wallets/` is used. This is useful for testing or running isolated environments:

@@ -9,7 +9,7 @@ Secure signing and wallet management for every chain. One vault, one interface �
 
 - **Zero key exposure.** Private keys are encrypted at rest, decrypted only after policy checks pass, then immediately wiped from memory. Agents authenticate with scoped API tokens and never see raw key material.
 - **Every chain, one interface.** EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON — all first-class. CAIP-2/CAIP-10 addressing abstracts away chain-specific details.
-- **Policy before signing.** A pre-signing policy engine gates every operation — spending limits, allowlists, chain restrictions — before any key is touched.
+- **Policy before signing.** A pre-signing policy engine gates agent (API key) operations — chain allowlists, expiry, and optional custom executables — before any key is touched.
 - **Built for agents.** MCP server, native SDK, and CLI. A wallet created by one tool works in every other.
 
 ## Install

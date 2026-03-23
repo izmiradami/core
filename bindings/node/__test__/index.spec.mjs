@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,6 +17,13 @@ import {
   importWalletPrivateKey,
   signTransaction,
   signMessage,
+  createPolicy,
+  listPolicies,
+  getPolicy,
+  deletePolicy,
+  createApiKey,
+  listApiKeys,
+  revokeApiKey,
 } from '../index.js';
 
 describe('@open-wallet-standard/core', () => {
@@ -239,5 +246,82 @@ describe('@open-wallet-standard/core', () => {
 
   it('rejects invalid private key hex', () => {
     assert.throws(() => importWalletPrivateKey('bad', 'not-hex', undefined, vaultDir));
+  });
+
+  // ---- Policy engine: API key signing ----
+
+  it('creates a policy, API key by wallet name, and signs with the token', () => {
+    const wallet = createWallet('policy-test', undefined, 12, vaultDir);
+
+    // Register a policy allowing only Base
+    createPolicy(JSON.stringify({
+      id: 'test-base-only',
+      name: 'Base Only',
+      version: 1,
+      created_at: '2026-03-22T00:00:00Z',
+      rules: [
+        { type: 'allowed_chains', chain_ids: ['eip155:8453', 'eip155:84532'] },
+      ],
+      action: 'deny',
+    }), vaultDir);
+
+    // Create API key by wallet name
+    const key = createApiKey('test-agent', [wallet.id], ['test-base-only'], '', null, vaultDir);
+    assert.ok(key.token.startsWith('ows_key_'));
+    assert.equal(key.name, 'test-agent');
+
+    // Sign on allowed chain — should succeed
+    const sig = signTransaction(wallet.id, 'base', 'deadbeef', key.token, null, vaultDir);
+    assert.ok(sig.signature.length > 0);
+
+    // Sign on denied chain — should fail
+    assert.throws(
+      () => signTransaction(wallet.id, 'ethereum', 'deadbeef', key.token, null, vaultDir),
+      (err) => err.message.includes('not in allowlist'),
+    );
+
+    // Owner mode still works on any chain
+    const ownerSig = signTransaction(wallet.id, 'ethereum', 'deadbeef', '', null, vaultDir);
+    assert.ok(ownerSig.signature.length > 0);
+
+    // Revoke and verify token is dead
+    revokeApiKey(key.id, vaultDir);
+    assert.throws(
+      () => signTransaction(wallet.id, 'base', 'deadbeef', key.token, null, vaultDir),
+      (err) => err.message.includes('API key not found'),
+    );
+
+    // Cleanup
+    deletePolicy('test-base-only', vaultDir);
+    deleteWallet(wallet.id, vaultDir);
+  });
+
+  it('executable policy gates signing', () => {
+    const wallet = createWallet('exe-test', undefined, 12, vaultDir);
+
+    // Write a deny script
+    const scriptPath = join(vaultDir, 'deny.sh');
+    writeFileSync(scriptPath, '#!/bin/sh\ncat > /dev/null\necho \'{"allow":false,"reason":"custom: blocked"}\'\n', { mode: 0o755 });
+
+    createPolicy(JSON.stringify({
+      id: 'test-exe-deny',
+      name: 'Executable Deny',
+      version: 1,
+      created_at: '2026-03-22T00:00:00Z',
+      rules: [],
+      executable: scriptPath,
+      action: 'deny',
+    }), vaultDir);
+
+    const key = createApiKey('exe-agent', [wallet.id], ['test-exe-deny'], '', null, vaultDir);
+
+    assert.throws(
+      () => signTransaction(wallet.id, 'evm', 'deadbeef', key.token, null, vaultDir),
+      (err) => err.message.includes('custom: blocked'),
+    );
+
+    revokeApiKey(key.id, vaultDir);
+    deletePolicy('test-exe-deny', vaultDir);
+    deleteWallet(wallet.id, vaultDir);
   });
 });

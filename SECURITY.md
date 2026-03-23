@@ -44,4 +44,4 @@ For details on how OWS protects key material, see:
 
 - [Key Isolation](docs/05-key-isolation.md)
 - [Storage Format](docs/01-storage-format.md)
-- [Policy Engine](docs/04-policy-engine.md)
+- [Policy Engine](docs/03-policy-engine.md)

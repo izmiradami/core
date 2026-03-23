@@ -3,7 +3,9 @@ pub mod derive;
 pub mod fund;
 pub mod generate;
 pub mod info;
+pub mod key;
 pub mod pay;
+pub mod policy;
 pub mod send_transaction;
 pub mod sign_message;
 pub mod sign_transaction;
@@ -91,6 +93,15 @@ pub fn read_passphrase() -> Zeroizing<String> {
     } else {
         Zeroizing::new(String::new())
     }
+}
+
+/// Peek at the passphrase value without consuming the env var.
+/// Returns `Some(value)` if OWS_PASSPHRASE is set (even if empty), `None` otherwise.
+/// Used by sign commands to detect API tokens before deciding the code path.
+pub fn peek_passphrase() -> Option<String> {
+    std::env::var("OWS_PASSPHRASE")
+        .ok()
+        .or_else(|| std::env::var("LWS_PASSPHRASE").ok())
 }
 
 /// Resolve a wallet into the private key bytes for a specific chain.

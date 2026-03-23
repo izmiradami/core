@@ -43,6 +43,16 @@ enum Commands {
         #[command(subcommand)]
         subcommand: PayCommands,
     },
+    /// Manage policies for API key access control
+    Policy {
+        #[command(subcommand)]
+        subcommand: PolicyCommands,
+    },
+    /// Manage API keys for agent access
+    Key {
+        #[command(subcommand)]
+        subcommand: KeyCommands,
+    },
     /// View configuration and RPC endpoints
     Config {
         #[command(subcommand)]
@@ -269,6 +279,63 @@ enum PayCommands {
 }
 
 #[derive(Subcommand)]
+enum PolicyCommands {
+    /// Register a policy from a JSON file
+    Create {
+        /// Path to the policy JSON file
+        #[arg(long)]
+        file: String,
+    },
+    /// List all registered policies
+    List,
+    /// Show details of a policy
+    Show {
+        /// Policy ID
+        #[arg(long)]
+        id: String,
+    },
+    /// Delete a policy
+    Delete {
+        /// Policy ID
+        #[arg(long)]
+        id: String,
+        /// Confirm deletion (required)
+        #[arg(long)]
+        confirm: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum KeyCommands {
+    /// Create an API key for agent access to wallets
+    Create {
+        /// Key name (e.g. "claude-agent")
+        #[arg(long)]
+        name: String,
+        /// Wallet name or ID (repeatable)
+        #[arg(long = "wallet")]
+        wallets: Vec<String>,
+        /// Policy ID to attach (repeatable)
+        #[arg(long = "policy")]
+        policies: Vec<String>,
+        /// Optional expiry timestamp (ISO-8601)
+        #[arg(long)]
+        expires_at: Option<String>,
+    },
+    /// List all API keys (tokens are never shown)
+    List,
+    /// Revoke (delete) an API key
+    Revoke {
+        /// API key ID
+        #[arg(long)]
+        id: String,
+        /// Confirm revocation (required)
+        #[arg(long)]
+        confirm: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum ConfigCommands {
     /// Show current configuration and RPC endpoints
     Show,
@@ -423,6 +490,22 @@ fn run(cli: Cli) -> Result<(), CliError> {
             MnemonicCommands::Derive { chain, index } => {
                 commands::derive::run(chain.as_deref(), index)
             }
+        },
+        Commands::Policy { subcommand } => match subcommand {
+            PolicyCommands::Create { file } => commands::policy::create(&file),
+            PolicyCommands::List => commands::policy::list(),
+            PolicyCommands::Show { id } => commands::policy::show(&id),
+            PolicyCommands::Delete { id, confirm } => commands::policy::delete(&id, confirm),
+        },
+        Commands::Key { subcommand } => match subcommand {
+            KeyCommands::Create {
+                name,
+                wallets,
+                policies,
+                expires_at,
+            } => commands::key::create(&name, &wallets, &policies, expires_at.as_deref()),
+            KeyCommands::List => commands::key::list(),
+            KeyCommands::Revoke { id, confirm } => commands::key::revoke(&id, confirm),
         },
         Commands::Config { subcommand } => match subcommand {
             ConfigCommands::Show => commands::config::show(),

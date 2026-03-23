@@ -14,6 +14,13 @@ from ows._native import (
     sign_transaction,
     sign_message,
     sign_and_send,
+    create_policy,
+    list_policies,
+    get_policy,
+    delete_policy,
+    create_api_key,
+    list_api_keys,
+    revoke_api_key,
 )
 
 __all__ = [
@@ -30,4 +37,11 @@ __all__ = [
     "sign_transaction",
     "sign_message",
     "sign_and_send",
+    "create_policy",
+    "list_policies",
+    "get_policy",
+    "delete_policy",
+    "create_api_key",
+    "list_api_keys",
+    "revoke_api_key",
 ]

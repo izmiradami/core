@@ -105,6 +105,142 @@ Show vault path and supported chains.
 ows wallet info
 ```
 
+## Policy Commands
+
+### `ows policy create`
+
+Register a policy from a JSON file.
+
+```bash
+ows policy create --file base-policy.json
+```
+
+Policy JSON format:
+
+```json
+{
+  "id": "base-only",
+  "name": "Base and Sepolia until year end",
+  "version": 1,
+  "created_at": "2026-03-22T00:00:00Z",
+  "rules": [
+    { "type": "allowed_chains", "chain_ids": ["eip155:8453", "eip155:84532"] },
+    { "type": "expires_at", "timestamp": "2026-12-31T00:00:00Z" }
+  ],
+  "action": "deny"
+}
+```
+
+Rules are AND-combined — all must pass. Supported declarative rule types:
+
+| Rule | Description |
+|------|-------------|
+| `allowed_chains` | Deny if chain is not in the list |
+| `expires_at` | Deny if current time is past the timestamp |
+
+Policies can also specify an `executable` field for custom validation — receives PolicyContext on stdin, writes `{"allow": true}` or `{"allow": false, "reason": "..."}` to stdout.
+
+### `ows policy list`
+
+```bash
+ows policy list
+```
+
+### `ows policy show`
+
+```bash
+ows policy show --id base-only
+```
+
+### `ows policy delete`
+
+```bash
+ows policy delete --id base-only --confirm
+```
+
+## Key Commands
+
+### `ows key create`
+
+Create an API key for agent access to one or more wallets. The owner's passphrase is required to re-encrypt the mnemonic under the token.
+
+```bash
+ows key create --name "claude-agent" \
+  --wallet my-wallet \
+  --policy base-only \
+  --policy agent-expiry
+```
+
+| Flag | Description |
+|------|-------------|
+| `--name <NAME>` | Key name (required) |
+| `--wallet <NAME>` | Wallet name or ID (repeatable) |
+| `--policy <ID>` | Policy ID to attach (repeatable) |
+| `--expires-at <TS>` | Optional expiry (ISO-8601) |
+
+Output includes the raw token (`ows_key_...`) — shown once. The agent uses this token in place of the passphrase.
+
+### `ows key list`
+
+```bash
+ows key list
+```
+
+Lists all keys with ID, name, wallets, policies, and creation time. Tokens are never displayed.
+
+### `ows key revoke`
+
+```bash
+ows key revoke --id <key-id> --confirm
+```
+
+Deletes the key file. The encrypted mnemonic copy is gone — the token becomes useless.
+
+## End-to-End Example: Agent Access
+
+```bash
+# Create a wallet
+ows wallet create --name agent-treasury
+
+# Define a policy: Base chain only, expires at end of year
+cat > policy.json << 'EOF'
+{
+  "id": "agent-limits",
+  "name": "Agent Safety Limits",
+  "version": 1,
+  "created_at": "2026-03-22T00:00:00Z",
+  "rules": [
+    { "type": "allowed_chains", "chain_ids": ["eip155:8453"] },
+    { "type": "expires_at", "timestamp": "2026-12-31T23:59:59Z" }
+  ],
+  "action": "deny"
+}
+EOF
+ows policy create --file policy.json
+
+# Create an API key with the policy attached
+ows key create --name "claude" --wallet agent-treasury --policy agent-limits
+# Output: ows_key_a1b2c3d4... (save this)
+
+# Agent signs on Base — policy allows it
+OWS_PASSPHRASE="ows_key_a1b2c3d4..." \
+  ows sign tx --wallet agent-treasury --chain base --tx 0x02f8...
+
+# Agent tries Ethereum mainnet — policy denies it
+OWS_PASSPHRASE="ows_key_a1b2c3d4..." \
+  ows sign tx --wallet agent-treasury --chain ethereum --tx 0x02f8...
+# error: policy denied: chain eip155:1 not in allowlist
+
+# Owner signs on any chain — no policy enforcement
+OWS_PASSPHRASE="" \
+  ows sign tx --wallet agent-treasury --chain ethereum --tx 0x02f8...
+# Works fine — owner mode bypasses all policies
+
+# Revoke the agent's access
+ows key revoke --id <key-id> --confirm
+# Token is now useless
+```
+
 ## Signing Commands
 
 ### `ows sign message`
@@ -244,9 +380,13 @@ ows uninstall --purge  # also remove ~/.ows (all wallet data)
 ```
 ~/.ows/
   bin/
-    ows                  # CLI binary
+    ows                     # CLI binary
   wallets/
-    <uuid>/
-      wallet.json        # Encrypted keystore (Keystore v3)
-      meta.json          # Name, chain, creation time
+    <uuid>.json             # Encrypted wallet (AES-256-GCM + scrypt)
+  policies/
+    <id>.json               # Policy definitions (not secret)
+  keys/
+    <uuid>.json             # API key files (0600 permissions)
+  logs/
+    audit.jsonl             # Audit log
 ```

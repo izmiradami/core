@@ -21,10 +21,10 @@
 | `sign_and_send(...)` | Done | |
 | Node.js NAPI bindings | Done | `bindings/node/src/lib.rs` |
 | Python PyO3 bindings | Done | `bindings/python/src/lib.rs` |
-| Token-based signing (credential = passphrase or `ows_key_...` token) | Not started | |
-| Policy evaluation on agent requests | Not started | |
-| API key management (`create_api_key`, `list_api_keys`, `revoke_api_key`) | Not started | |
-| Policy management (`create_policy`, `list_policies`, `delete_policy`) | Not started | |
+| Token-based signing (credential = passphrase or `ows_key_...` token) | Done (CLI) | `ows` CLI + `ows-lib`; language bindings still use passphrase-only APIs |
+| Policy evaluation on agent requests | Done (CLI) | Same split: enforced in `ows-lib` for CLI agent path |
+| API key management (`create_api_key`, `list_api_keys`, `revoke_api_key`) | Done (CLI) | `ows key` commands; not yet in Node/Python bindings |
+| Policy management (`create_policy`, `list_policies`, `delete_policy`) | Done (CLI) | `ows policy` commands; not yet in Node/Python bindings |
 | MCP server | Not started | |
 | Audit logging from bindings (not just CLI) | Not started | Only CLI logs to audit |
 

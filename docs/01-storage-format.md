@@ -13,10 +13,9 @@
 | Audit log (`~/.ows/logs/audit.jsonl`) | Done | `ows-cli/src/audit.rs` |
 | Crypto object (AES-256-GCM + scrypt) | Done | `ows-signer/src/crypto.rs` |
 | Keystore v3 import | Not started | No v3 import/re-wrap logic |
-| `~/.ows/keys/` directory + API key files | Not started | Approach B: wallet secrets re-encrypted under HKDF(token) |
-| `~/.ows/policies/` directory + policy files | Not started | |
-| `~/.ows/policy_state/` directory | Not started | Spending state for daily limits |
-| HKDF-SHA256 crypto envelope support | Not started | For API key token-derived encryption |
+| `~/.ows/keys/` directory + API key files | Done | `ows-lib/src/key_store.rs` |
+| `~/.ows/policies/` directory + policy files | Done | `ows-lib/src/policy_store.rs` |
+| HKDF-SHA256 crypto envelope support | Done | API key token-derived encryption |
 | Passphrase 12-char minimum enforcement | Not started | No validation at creation time |
 
 ## Design Decision
@@ -50,11 +49,6 @@ The Ethereum Keystore v3 format has been battle-tested since 2015, is implemente
 ├── policies/
 │   ├── <policy-id>.json           # Policy definition (declarative rules and/or executable)
 │   └── ...
-├── policy_state/
-│   ├── <key-id>/
-│   │   ├── spending-<chain-id>-<date>.json  # Daily spending state
-│   │   └── ...
-│   └── ...
 └── logs/
     └── audit.jsonl                # Append-only audit log
 ```
@@ -69,7 +63,6 @@ The Ethereum Keystore v3 format has been battle-tested since 2015, is implemente
 ~/.ows/keys/*.json            -rw-------  (600)
 ~/.ows/policies/              drwxr-xr-x  (755)
 ~/.ows/policies/*.json        -rw-r--r--  (644)
-~/.ows/policy_state/          drwx------  (700)
 ~/.ows/config.json            -rw-------  (600)
 ~/.ows/logs/audit.jsonl       -rw-------  (600)
 ```
@@ -77,8 +70,6 @@ The Ethereum Keystore v3 format has been battle-tested since 2015, is implemente
 The `wallets/` and `keys/` directories contain encrypted secrets and MUST be readable only by the owner. Implementations MUST verify permissions on startup and refuse to operate if these directories are world-readable or group-readable.
 
 The `policies/` directory uses relaxed permissions (755/644) because policy files are not secret — they contain rule definitions and paths to executables, not key material.
-
-The `policy_state/` directory tracks spending and MUST be owner-only (700) to prevent manipulation of spending limits.
 
 ## Wallet File Format
 

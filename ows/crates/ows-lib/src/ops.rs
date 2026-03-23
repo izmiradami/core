@@ -395,6 +395,10 @@ pub fn rename_wallet(
 }
 
 /// Sign a transaction. Returns hex-encoded signature.
+///
+/// The `passphrase` parameter accepts either the owner's passphrase or an
+/// API token (`ows_key_...`). When a token is provided, policy enforcement
+/// kicks in and the mnemonic is decrypted via HKDF instead of scrypt.
 pub fn sign_transaction(
     wallet: &str,
     chain: &str,
@@ -403,14 +407,23 @@ pub fn sign_transaction(
     index: Option<u32>,
     vault_path: Option<&Path>,
 ) -> Result<SignResult, OwsLibError> {
-    let passphrase = passphrase.unwrap_or("");
-    let chain = parse_chain(chain)?;
+    let credential = passphrase.unwrap_or("");
 
     let tx_hex_clean = tx_hex.strip_prefix("0x").unwrap_or(tx_hex);
     let tx_bytes = hex::decode(tx_hex_clean)
         .map_err(|e| OwsLibError::InvalidInput(format!("invalid hex transaction: {e}")))?;
 
-    let key = decrypt_signing_key(wallet, chain.chain_type, passphrase, index, vault_path)?;
+    // Agent mode: token-based signing with policy enforcement
+    if credential.starts_with(crate::key_store::TOKEN_PREFIX) {
+        let chain = parse_chain(chain)?;
+        return crate::key_ops::sign_with_api_key(
+            credential, wallet, &chain, &tx_bytes, index, vault_path,
+        );
+    }
+
+    // Owner mode: existing passphrase-based signing (unchanged)
+    let chain = parse_chain(chain)?;
+    let key = decrypt_signing_key(wallet, chain.chain_type, credential, index, vault_path)?;
     let signer = signer_for_chain(chain.chain_type);
     let output = signer.sign_transaction(key.expose(), &tx_bytes)?;
 
@@ -421,6 +434,9 @@ pub fn sign_transaction(
 }
 
 /// Sign a message. Returns hex-encoded signature.
+///
+/// The `passphrase` parameter accepts either the owner's passphrase or an
+/// API token (`ows_key_...`).
 pub fn sign_message(
     wallet: &str,
     chain: &str,
@@ -430,8 +446,7 @@ pub fn sign_message(
     index: Option<u32>,
     vault_path: Option<&Path>,
 ) -> Result<SignResult, OwsLibError> {
-    let passphrase = passphrase.unwrap_or("");
-    let chain = parse_chain(chain)?;
+    let credential = passphrase.unwrap_or("");
 
     let encoding = encoding.unwrap_or("utf8");
     let msg_bytes = match encoding {
@@ -445,7 +460,17 @@ pub fn sign_message(
         }
     };
 
-    let key = decrypt_signing_key(wallet, chain.chain_type, passphrase, index, vault_path)?;
+    // Agent mode
+    if credential.starts_with(crate::key_store::TOKEN_PREFIX) {
+        let chain = parse_chain(chain)?;
+        return crate::key_ops::sign_message_with_api_key(
+            credential, wallet, &chain, &msg_bytes, index, vault_path,
+        );
+    }
+
+    // Owner mode
+    let chain = parse_chain(chain)?;
+    let key = decrypt_signing_key(wallet, chain.chain_type, credential, index, vault_path)?;
     let signer = signer_for_chain(chain.chain_type);
     let output = signer.sign_message(key.expose(), &msg_bytes)?;
 
@@ -457,6 +482,9 @@ pub fn sign_message(
 
 /// Sign EIP-712 typed structured data. Returns hex-encoded signature.
 /// Only supported for EVM chains.
+///
+/// Note: API token signing is not supported for typed data (EVM-specific
+/// operation that requires full context). Use `sign_transaction` instead.
 pub fn sign_typed_data(
     wallet: &str,
     chain: &str,
@@ -465,7 +493,7 @@ pub fn sign_typed_data(
     index: Option<u32>,
     vault_path: Option<&Path>,
 ) -> Result<SignResult, OwsLibError> {
-    let passphrase = passphrase.unwrap_or("");
+    let credential = passphrase.unwrap_or("");
     let chain = parse_chain(chain)?;
 
     if chain.chain_type != ows_core::ChainType::Evm {
@@ -474,7 +502,14 @@ pub fn sign_typed_data(
         ));
     }
 
-    let key = decrypt_signing_key(wallet, chain.chain_type, passphrase, index, vault_path)?;
+    if credential.starts_with(crate::key_store::TOKEN_PREFIX) {
+        return Err(OwsLibError::InvalidInput(
+            "EIP-712 typed data signing via API key is not yet supported; use sign_transaction"
+                .into(),
+        ));
+    }
+
+    let key = decrypt_signing_key(wallet, chain.chain_type, credential, index, vault_path)?;
     let evm_signer = ows_signer::chains::EvmSigner;
     let output = evm_signer.sign_typed_data(key.expose(), typed_data_json)?;
 
@@ -485,6 +520,10 @@ pub fn sign_typed_data(
 }
 
 /// Sign and broadcast a transaction. Returns the transaction hash.
+///
+/// The `passphrase` parameter accepts either the owner's passphrase or an
+/// API token (`ows_key_...`). When a token is provided, policy enforcement
+/// occurs before signing.
 pub fn sign_and_send(
     wallet: &str,
     chain: &str,
@@ -494,14 +533,29 @@ pub fn sign_and_send(
     rpc_url: Option<&str>,
     vault_path: Option<&Path>,
 ) -> Result<SendResult, OwsLibError> {
-    let passphrase = passphrase.unwrap_or("");
-    let chain_info = parse_chain(chain)?;
+    let credential = passphrase.unwrap_or("");
 
     let tx_hex_clean = tx_hex.strip_prefix("0x").unwrap_or(tx_hex);
     let tx_bytes = hex::decode(tx_hex_clean)
         .map_err(|e| OwsLibError::InvalidInput(format!("invalid hex transaction: {e}")))?;
 
-    let key = decrypt_signing_key(wallet, chain_info.chain_type, passphrase, index, vault_path)?;
+    // Agent mode: enforce policies, decrypt key, then sign + broadcast
+    if credential.starts_with(crate::key_store::TOKEN_PREFIX) {
+        let chain_info = parse_chain(chain)?;
+        let (key, _) = crate::key_ops::enforce_policy_and_decrypt_key(
+            credential,
+            wallet,
+            &chain_info,
+            &tx_bytes,
+            index,
+            vault_path,
+        )?;
+        return sign_encode_and_broadcast(key.expose(), chain, &tx_bytes, rpc_url);
+    }
+
+    // Owner mode
+    let chain_info = parse_chain(chain)?;
+    let key = decrypt_signing_key(wallet, chain_info.chain_type, credential, index, vault_path)?;
 
     sign_encode_and_broadcast(key.expose(), chain, &tx_bytes, rpc_url)
 }
@@ -2448,6 +2502,109 @@ mod tests {
         assert!(
             sign_result.recovery_id.is_some(),
             "recovery_id should be present for EVM"
+        );
+    }
+
+    // ================================================================
+    // OWNER-MODE REGRESSION: prove the credential branch doesn't alter
+    // existing behavior for any passphrase variant.
+    // ================================================================
+
+    #[test]
+    fn regression_owner_path_identical_to_direct_signer() {
+        // Proves that sign_transaction via the library produces the exact
+        // same signature as calling decrypt_signing_key → signer directly.
+        // If the credential branch accidentally altered the owner path,
+        // these would diverge.
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path();
+        create_wallet("reg-owner", None, None, Some(vault)).unwrap();
+
+        let tx_hex = "deadbeefcafebabe";
+
+        // Path A: through the public sign_transaction API (has credential branch)
+        let api_result =
+            sign_transaction("reg-owner", "evm", tx_hex, None, None, Some(vault)).unwrap();
+
+        // Path B: direct signer call (no credential branch)
+        let key = decrypt_signing_key("reg-owner", ChainType::Evm, "", None, Some(vault)).unwrap();
+        let signer = signer_for_chain(ChainType::Evm);
+        let tx_bytes = hex::decode(tx_hex).unwrap();
+        let direct_output = signer.sign_transaction(key.expose(), &tx_bytes).unwrap();
+
+        assert_eq!(
+            api_result.signature,
+            hex::encode(&direct_output.signature),
+            "library API and direct signer must produce identical signatures"
+        );
+        assert_eq!(
+            api_result.recovery_id, direct_output.recovery_id,
+            "recovery_id must match"
+        );
+    }
+
+    #[test]
+    fn regression_owner_passphrase_not_confused_with_token() {
+        // Prove that a non-token passphrase never enters the agent path.
+        // If it did, it would fail with ApiKeyNotFound (no such token hash).
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path();
+        create_wallet("reg-pass", Some(12), Some("hunter2"), Some(vault)).unwrap();
+
+        let tx_hex = "deadbeef";
+
+        // Signing with the correct passphrase must succeed
+        let result = sign_transaction(
+            "reg-pass",
+            "evm",
+            tx_hex,
+            Some("hunter2"),
+            None,
+            Some(vault),
+        );
+        assert!(
+            result.is_ok(),
+            "owner-mode signing failed: {:?}",
+            result.err()
+        );
+
+        // Signing with empty passphrase must fail with CryptoError (wrong passphrase),
+        // NOT with ApiKeyNotFound (which would mean it entered the agent path)
+        let bad = sign_transaction("reg-pass", "evm", tx_hex, Some(""), None, Some(vault));
+        assert!(bad.is_err());
+        match bad.unwrap_err() {
+            OwsLibError::Crypto(_) => {} // correct: scrypt decryption failed
+            other => panic!("expected Crypto error for wrong passphrase, got: {other}"),
+        }
+
+        // Signing with None must also fail with CryptoError
+        let none_result = sign_transaction("reg-pass", "evm", tx_hex, None, None, Some(vault));
+        assert!(none_result.is_err());
+        match none_result.unwrap_err() {
+            OwsLibError::Crypto(_) => {}
+            other => panic!("expected Crypto error for None passphrase, got: {other}"),
+        }
+    }
+
+    #[test]
+    fn regression_sign_message_owner_path_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = dir.path();
+        create_wallet("reg-msg", None, None, Some(vault)).unwrap();
+
+        // Through the public API
+        let api_result =
+            sign_message("reg-msg", "evm", "hello", None, None, None, Some(vault)).unwrap();
+
+        // Direct signer
+        let key = decrypt_signing_key("reg-msg", ChainType::Evm, "", None, Some(vault)).unwrap();
+        let signer = signer_for_chain(ChainType::Evm);
+        let direct = signer.sign_message(key.expose(), b"hello").unwrap();
+
+        assert_eq!(
+            api_result.signature,
+            hex::encode(&direct.signature),
+            "sign_message owner path must match direct signer"
         );
     }
 }

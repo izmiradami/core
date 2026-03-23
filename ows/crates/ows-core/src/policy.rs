@@ -11,14 +11,8 @@ pub enum PolicyAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PolicyRule {
-    /// Deny if daily spend exceeds `max_native_units` (wei, lamports, satoshis, etc).
-    DailySpendingLimit { max_native_units: String },
-
     /// Deny if `chain_id` is not in the allowlist.
     AllowedChains { chain_ids: Vec<String> },
-
-    /// Deny if `transaction.to` is not in the allowlist (case-insensitive, EVM-only initially).
-    AllowedAddresses { addresses: Vec<String> },
 
     /// Deny if current time is past the timestamp.
     ExpiresAt { timestamp: String },
@@ -68,12 +62,12 @@ pub struct TransactionContext {
     pub data: Option<String>,
 }
 
-/// Current spending state for the API key on the given chain.
+/// Carried in [`PolicyContext`] for executable policies (opaque JSON). Not used by built-in rules.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpendingContext {
-    /// Total already spent today in native units.
+    /// Reserved for future use / custom tooling.
     pub daily_total: String,
-    /// Date for which this total applies (YYYY-MM-DD).
+    /// Date string (YYYY-MM-DD).
     pub date: String,
 }
 
@@ -111,19 +105,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_policy_rule_serde_daily_spending_limit() {
-        let rule = PolicyRule::DailySpendingLimit {
-            max_native_units: "1000000000000000000".to_string(),
-        };
-        let json = serde_json::to_value(&rule).unwrap();
-        assert_eq!(json["type"], "daily_spending_limit");
-        assert_eq!(json["max_native_units"], "1000000000000000000");
-
-        let deserialized: PolicyRule = serde_json::from_value(json).unwrap();
-        assert_eq!(deserialized, rule);
-    }
-
-    #[test]
     fn test_policy_rule_serde_allowed_chains() {
         let rule = PolicyRule::AllowedChains {
             chain_ids: vec!["eip155:8453".into(), "eip155:84532".into()],
@@ -131,18 +112,6 @@ mod tests {
         let json = serde_json::to_value(&rule).unwrap();
         assert_eq!(json["type"], "allowed_chains");
         assert_eq!(json["chain_ids"][0], "eip155:8453");
-
-        let deserialized: PolicyRule = serde_json::from_value(json).unwrap();
-        assert_eq!(deserialized, rule);
-    }
-
-    #[test]
-    fn test_policy_rule_serde_allowed_addresses() {
-        let rule = PolicyRule::AllowedAddresses {
-            addresses: vec!["0x742d35Cc6634C0532925a3b844Bc9e7595f2bD0C".into()],
-        };
-        let json = serde_json::to_value(&rule).unwrap();
-        assert_eq!(json["type"], "allowed_addresses");
 
         let deserialized: PolicyRule = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized, rule);
@@ -169,11 +138,11 @@ mod tests {
             version: 1,
             created_at: "2026-03-22T10:00:00Z".into(),
             rules: vec![
-                PolicyRule::DailySpendingLimit {
-                    max_native_units: "1000000000000000000".into(),
-                },
                 PolicyRule::AllowedChains {
                     chain_ids: vec!["eip155:8453".into()],
+                },
+                PolicyRule::ExpiresAt {
+                    timestamp: "2026-12-31T23:59:59Z".into(),
                 },
             ],
             executable: None,

@@ -12,6 +12,30 @@ pub fn run(
     index: u32,
     json_output: bool,
 ) -> Result<(), CliError> {
+    // Check for API token in passphrase — route through library for policy enforcement
+    let passphrase = super::peek_passphrase();
+    if passphrase
+        .as_deref()
+        .is_some_and(|p| p.starts_with(ows_lib::key_store::TOKEN_PREFIX))
+    {
+        if typed_data.is_some() {
+            return Err(CliError::InvalidArgs(
+                "EIP-712 typed data signing via API key is not yet supported".into(),
+            ));
+        }
+        let result = ows_lib::sign_message(
+            wallet_name,
+            chain_str,
+            message,
+            passphrase.as_deref(),
+            Some(encoding),
+            Some(index),
+            None,
+        )?;
+        return print_result(&result.signature, result.recovery_id, json_output);
+    }
+
+    // Owner mode: resolve key directly (existing behavior)
     let chain = parse_chain(chain_str)?;
     let key = super::resolve_signing_key(wallet_name, chain.chain_type, index)?;
 
@@ -38,15 +62,26 @@ pub fn run(
         signer.sign_message(key.expose(), &msg_bytes)?
     };
 
+    print_result(
+        &hex::encode(&output.signature),
+        output.recovery_id,
+        json_output,
+    )
+}
+
+fn print_result(
+    signature: &str,
+    recovery_id: Option<u8>,
+    json_output: bool,
+) -> Result<(), CliError> {
     if json_output {
         let obj = serde_json::json!({
-            "signature": hex::encode(&output.signature),
-            "recovery_id": output.recovery_id,
+            "signature": signature,
+            "recovery_id": recovery_id,
         });
         println!("{}", serde_json::to_string_pretty(&obj)?);
     } else {
-        println!("{}", hex::encode(&output.signature));
+        println!("{signature}");
     }
-
     Ok(())
 }

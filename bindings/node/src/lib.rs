@@ -269,6 +269,113 @@ pub fn sign_typed_data(
     .map_err(map_err)
 }
 
+// ---------------------------------------------------------------------------
+// Policy management
+// ---------------------------------------------------------------------------
+
+/// Register a policy from a JSON string.
+#[napi]
+pub fn create_policy(policy_json: String, vault_path_opt: Option<String>) -> Result<()> {
+    let policy: ows_core::Policy =
+        serde_json::from_str(&policy_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    ows_lib::policy_store::save_policy(&policy, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
+/// List all registered policies.
+#[napi]
+pub fn list_policies(vault_path_opt: Option<String>) -> Result<Vec<serde_json::Value>> {
+    let policies =
+        ows_lib::policy_store::list_policies(vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    policies
+        .iter()
+        .map(|p| serde_json::to_value(p).map_err(|e| napi::Error::from_reason(e.to_string())))
+        .collect()
+}
+
+/// Get a single policy by ID.
+#[napi]
+pub fn get_policy(id: String, vault_path_opt: Option<String>) -> Result<serde_json::Value> {
+    let policy =
+        ows_lib::policy_store::load_policy(&id, vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    serde_json::to_value(&policy).map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// Delete a policy by ID.
+#[napi]
+pub fn delete_policy(id: String, vault_path_opt: Option<String>) -> Result<()> {
+    ows_lib::policy_store::delete_policy(&id, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
+// ---------------------------------------------------------------------------
+// API key management
+// ---------------------------------------------------------------------------
+
+/// API key creation result.
+#[napi(object)]
+pub struct ApiKeyResult {
+    /// The raw token (shown once — caller must save it).
+    pub token: String,
+    /// The key file ID.
+    pub id: String,
+    pub name: String,
+}
+
+/// Create an API key for agent access to wallets.
+/// Returns the raw token (shown once) and key metadata.
+#[napi]
+pub fn create_api_key(
+    name: String,
+    wallet_ids: Vec<String>,
+    policy_ids: Vec<String>,
+    passphrase: String,
+    expires_at: Option<String>,
+    vault_path_opt: Option<String>,
+) -> Result<ApiKeyResult> {
+    let (token, key_file) = ows_lib::key_ops::create_api_key(
+        &name,
+        &wallet_ids,
+        &policy_ids,
+        &passphrase,
+        expires_at.as_deref(),
+        vault_path(vault_path_opt).as_deref(),
+    )
+    .map_err(map_err)?;
+
+    Ok(ApiKeyResult {
+        token,
+        id: key_file.id,
+        name: key_file.name,
+    })
+}
+
+/// List all API keys (tokens are never returned).
+#[napi]
+pub fn list_api_keys(vault_path_opt: Option<String>) -> Result<Vec<serde_json::Value>> {
+    let keys =
+        ows_lib::key_store::list_api_keys(vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    keys.iter()
+        .map(|k| {
+            // Strip wallet_secrets from the output — never expose encrypted material
+            let mut v = serde_json::to_value(k)
+                .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            v.as_object_mut().map(|m| m.remove("wallet_secrets"));
+            Ok(v)
+        })
+        .collect()
+}
+
+/// Revoke (delete) an API key by ID.
+#[napi]
+pub fn revoke_api_key(id: String, vault_path_opt: Option<String>) -> Result<()> {
+    ows_lib::key_store::delete_api_key(&id, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
 /// Sign and broadcast a transaction. Returns the transaction hash.
 #[napi]
 pub fn sign_and_send(

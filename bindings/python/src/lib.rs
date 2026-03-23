@@ -264,6 +264,125 @@ fn sign_and_send(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Policy management
+// ---------------------------------------------------------------------------
+
+/// Register a policy from a JSON string.
+#[pyfunction]
+#[pyo3(signature = (policy_json, vault_path_opt=None))]
+fn create_policy(policy_json: &str, vault_path_opt: Option<String>) -> PyResult<()> {
+    let policy: ows_core::Policy =
+        serde_json::from_str(policy_json).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+    ows_lib::policy_store::save_policy(&policy, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
+/// List all registered policies.
+#[pyfunction]
+#[pyo3(signature = (vault_path_opt=None))]
+fn list_policies(vault_path_opt: Option<String>) -> PyResult<PyObject> {
+    let policies =
+        ows_lib::policy_store::list_policies(vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    let json_str =
+        serde_json::to_string(&policies).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    Python::with_gil(|py| {
+        let json_mod = py.import("json")?;
+        json_mod.call_method1("loads", (json_str,)).map(|o| o.unbind())
+    })
+}
+
+/// Get a single policy by ID.
+#[pyfunction]
+#[pyo3(signature = (id, vault_path_opt=None))]
+fn get_policy(id: &str, vault_path_opt: Option<String>) -> PyResult<PyObject> {
+    let policy =
+        ows_lib::policy_store::load_policy(id, vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    let json_str =
+        serde_json::to_string(&policy).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    Python::with_gil(|py| {
+        let json_mod = py.import("json")?;
+        json_mod.call_method1("loads", (json_str,)).map(|o| o.unbind())
+    })
+}
+
+/// Delete a policy by ID.
+#[pyfunction]
+#[pyo3(signature = (id, vault_path_opt=None))]
+fn delete_policy(id: &str, vault_path_opt: Option<String>) -> PyResult<()> {
+    ows_lib::policy_store::delete_policy(id, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
+// ---------------------------------------------------------------------------
+// API key management
+// ---------------------------------------------------------------------------
+
+/// Create an API key for agent access to wallets.
+/// Returns a dict with `token` (shown once), `id`, and `name`.
+#[pyfunction]
+#[pyo3(signature = (name, wallet_ids, policy_ids, passphrase, expires_at=None, vault_path_opt=None))]
+fn create_api_key(
+    name: &str,
+    wallet_ids: Vec<String>,
+    policy_ids: Vec<String>,
+    passphrase: &str,
+    expires_at: Option<&str>,
+    vault_path_opt: Option<String>,
+) -> PyResult<PyObject> {
+    let (token, key_file) = ows_lib::key_ops::create_api_key(
+        name,
+        &wallet_ids,
+        &policy_ids,
+        passphrase,
+        expires_at,
+        vault_path(vault_path_opt).as_deref(),
+    )
+    .map_err(map_err)?;
+
+    Python::with_gil(|py| {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("token", token)?;
+        dict.set_item("id", &key_file.id)?;
+        dict.set_item("name", &key_file.name)?;
+        Ok(dict.unbind().into())
+    })
+}
+
+/// List all API keys (tokens are never returned).
+#[pyfunction]
+#[pyo3(signature = (vault_path_opt=None))]
+fn list_api_keys(vault_path_opt: Option<String>) -> PyResult<PyObject> {
+    let keys =
+        ows_lib::key_store::list_api_keys(vault_path(vault_path_opt).as_deref())
+            .map_err(map_err)?;
+    // Strip wallet_secrets from output
+    let sanitized: Vec<serde_json::Value> = keys
+        .iter()
+        .map(|k| {
+            let mut v = serde_json::to_value(k).unwrap_or_default();
+            v.as_object_mut().map(|m| m.remove("wallet_secrets"));
+            v
+        })
+        .collect();
+    let json_str = serde_json::to_string(&sanitized)
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    Python::with_gil(|py| {
+        let json_mod = py.import("json")?;
+        json_mod.call_method1("loads", (json_str,)).map(|o| o.unbind())
+    })
+}
+
+/// Revoke (delete) an API key by ID.
+#[pyfunction]
+#[pyo3(signature = (id, vault_path_opt=None))]
+fn revoke_api_key(id: &str, vault_path_opt: Option<String>) -> PyResult<()> {
+    ows_lib::key_store::delete_api_key(id, vault_path(vault_path_opt).as_deref())
+        .map_err(map_err)
+}
+
 fn wallet_info_to_dict(py: Python<'_>, info: &ows_lib::WalletInfo) -> PyResult<PyObject> {
     let dict = wallet_info_to_dict_inner(py, info)?;
     Ok(dict.unbind().into())
@@ -308,5 +427,12 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sign_message, m)?)?;
     m.add_function(wrap_pyfunction!(sign_typed_data, m)?)?;
     m.add_function(wrap_pyfunction!(sign_and_send, m)?)?;
+    m.add_function(wrap_pyfunction!(create_policy, m)?)?;
+    m.add_function(wrap_pyfunction!(list_policies, m)?)?;
+    m.add_function(wrap_pyfunction!(get_policy, m)?)?;
+    m.add_function(wrap_pyfunction!(delete_policy, m)?)?;
+    m.add_function(wrap_pyfunction!(create_api_key, m)?)?;
+    m.add_function(wrap_pyfunction!(list_api_keys, m)?)?;
+    m.add_function(wrap_pyfunction!(revoke_api_key, m)?)?;
     Ok(())
 }

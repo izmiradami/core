@@ -1136,8 +1136,10 @@ dependencies = [
  "ows-core",
  "ows-signer",
  "prost",
+ "rand 0.8.5",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
  "tokio",
  "tonic",
@@ -1152,7 +1154,9 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "ows-core",
  "ows-lib",
+ "serde_json",
 ]
 
 [[package]]
