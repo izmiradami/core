@@ -5,7 +5,7 @@ Rust implementation of the [Open Wallet Standard](https://openwalletstandard.org
 ## Quick Install
 
 ```bash
-curl -fsSL https://openwallet.sh/install.sh | bash
+curl -fsSL https://docs.openwallet.sh/install.sh | bash
 ```
 
 This installs the `ows` CLI binary, plus Node.js and Python bindings if those runtimes are available.

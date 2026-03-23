@@ -8,6 +8,12 @@ description = "Python native bindings for the Open Wallet Standard"
 name = "ows"
 crate-type = ["cdylib"]
 
+[features]
+default = []
+fast-kdf = ["ows-lib/fast-kdf"]
+
 [dependencies]
 ows-lib = { path = "../../ows/crates/ows-lib" }
+ows-core = { path = "../../ows/crates/ows-core" }
+serde_json = "1"
 pyo3 = { version = "0.24.1", features = ["extension-module"] }

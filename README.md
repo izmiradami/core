@@ -18,7 +18,7 @@ Secure signing and wallet management for every chain. One vault, one interface â
 
 ```bash
 # Everything (CLI + Node + Python bindings)
-curl -fsSL https://openwallet.sh/install.sh | bash
+curl -fsSL https://docs.openwallet.sh/install.sh | bash
 ```
 
 Or install only what you need:

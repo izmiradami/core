@@ -266,6 +266,77 @@ install_bindings() {
   install_node_bindings
 }
 
+# --- Install agent skill ---
+install_skill() {
+  local skill_dir_name="ows"
+  local raw_base="https://raw.githubusercontent.com/${REPO}/main/skills/ows"
+
+  # Download SKILL.md
+  if [ -z "$TMPDIR" ] || [ ! -d "$TMPDIR" ]; then
+    TMPDIR="$(mktemp -d)"
+  fi
+  local staging="$TMPDIR/skill"
+  mkdir -p "$staging/references"
+
+  if ! curl -fsSL -o "$staging/SKILL.md" "$raw_base/SKILL.md" 2>/dev/null; then
+    warn "Could not download SKILL.md — skipping skill install"
+    return
+  fi
+
+  # Download reference docs (best-effort)
+  curl -fsSL -o "$staging/references/node.md" "$raw_base/references/node.md" 2>/dev/null || true
+  curl -fsSL -o "$staging/references/python.md" "$raw_base/references/python.md" 2>/dev/null || true
+
+  # Agent config directories to check (parent_dir  agent_name)
+  local agents="
+.agents|universal
+.claude|Claude Code
+.config/agents|Amp
+.cursor|Cursor
+.copilot|GitHub Copilot
+.codex|Codex
+.gemini|Gemini CLI
+.config/opencode|OpenCode
+.config/goose|Goose
+.windsurf|Windsurf
+.codeium/windsurf|Windsurf
+.continue|Continue
+.roo|Roo
+.kiro|Kiro
+.augment|Augment
+.trae|Trae
+"
+
+  local installed=""
+  local count=0
+
+  while IFS='|' read -r parent_rel agent_name; do
+    [ -z "$parent_rel" ] && continue
+    local parent="$HOME/$parent_rel"
+    [ -d "$parent" ] || continue
+
+    local dest="$parent/skills/$skill_dir_name"
+    mkdir -p "$dest/references" 2>/dev/null || continue
+    if cp "$staging/SKILL.md" "$dest/SKILL.md" 2>/dev/null; then
+      # Copy references (best-effort)
+      cp "$staging/references/node.md" "$dest/references/node.md" 2>/dev/null || true
+      cp "$staging/references/python.md" "$dest/references/python.md" 2>/dev/null || true
+      if [ -n "$installed" ]; then
+        installed="$installed, $agent_name"
+      else
+        installed="$agent_name"
+      fi
+      count=$((count + 1))
+    fi
+  done <<< "$agents"
+
+  if [ "$count" -gt 0 ]; then
+    info "Installed ows skill to $count agent(s): $installed"
+  else
+    info "No coding agents detected — skill not installed (run again after setting up an agent)"
+  fi
+}
+
 # --- Main ---
 main() {
   info "OWS installer"
@@ -310,6 +381,10 @@ main() {
   echo
   info "Installing language bindings..."
   install_bindings
+
+  echo
+  info "Installing agent skill..."
+  install_skill
 
   echo
   info "OWS installed successfully!"

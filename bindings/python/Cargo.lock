@@ -1072,8 +1072,10 @@ dependencies = [
 name = "ows-python"
 version = "0.4.2"
 dependencies = [
+ "ows-core",
  "ows-lib",
  "pyo3",
+ "serde_json",
 ]
 
 [[package]]

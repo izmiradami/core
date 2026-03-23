@@ -1,7 +1,7 @@
 ---
 name: ows
-description: Secure, local-first multi-chain wallet management — create wallets, derive addresses, sign messages and transactions across EVM, Solana, Sui, Bitcoin, Cosmos, Tron, and TON via CLI, Node.js, or Python.
-version: 0.4.2
+description: Secure, local-first multi-chain wallet management — create wallets, derive addresses, sign messages and transactions across EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, and Filecoin via CLI, Node.js, or Python.
+version: 0.4.3
 metadata:
   openclaw:
     requires:
@@ -33,9 +33,13 @@ Use this skill when the user asks to:
 
 - Create, import, list, delete, or manage crypto wallets
 - Derive blockchain addresses from a mnemonic
-- Sign messages or transactions for EVM, Solana, Sui, Bitcoin, Cosmos, Tron, or TON
+- Sign messages or transactions for EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, or Filecoin
 - Broadcast signed transactions to a chain
 - Generate BIP-39 mnemonic phrases
+- Fund a wallet with USDC (MoonPay) or check token balances
+- Make paid requests to x402-enabled API endpoints or discover x402 services
+- Create and manage policies for API key access control
+- Create, list, or revoke API keys for agent access to wallets
 - Work with `@open-wallet-standard/core` or `open-wallet-standard` in code
 
 ## Supported Chains
@@ -49,12 +53,14 @@ Use this skill when the user asks to:
 | Tron | `tron` | secp256k1 | base58check |
 | TON | `ton` | Ed25519 | raw/bounceable |
 | Sui | `sui` | Ed25519 | 0x + BLAKE2b-256 hex |
+| Spark (Bitcoin L2) | `spark` | secp256k1 | spark: prefixed |
+| Filecoin | `filecoin` | secp256k1 | f1 secp256k1 |
 
 ## Installation
 
 ```bash
 # CLI (one-liner)
-curl -fsSL https://openwallet.sh/install.sh | bash
+curl -fsSL https://docs.openwallet.sh/install.sh | bash
 
 # Node.js SDK (global install also provides the ows CLI)
 npm install @open-wallet-standard/core
@@ -111,6 +117,54 @@ ows sign tx --wallet "my-wallet" --chain evm --tx "02f8..."
 
 # Sign and broadcast
 ows sign send-tx --wallet "my-wallet" --chain evm --tx "02f8..." --rpc-url "https://..."
+```
+
+### Funding
+
+```bash
+# Create a MoonPay deposit (auto-converts to USDC on target chain)
+ows fund deposit --wallet "my-wallet" --chain base --token USDC
+
+# Check token balances
+ows fund balance --wallet "my-wallet" --chain base
+```
+
+### Payments (x402)
+
+```bash
+# Make a paid request to an x402-enabled API endpoint
+ows pay request https://api.example.com/data --wallet "my-wallet"
+ows pay request https://api.example.com/data --wallet "my-wallet" --method POST --body '{"key":"value"}'
+
+# Discover x402-enabled services from the Bazaar directory
+ows pay discover
+ows pay discover --query "weather" --limit 10
+```
+
+### Policies
+
+```bash
+# Register a policy from a JSON file
+ows policy create --file policy.json
+
+# List / show / delete policies
+ows policy list
+ows policy show --id "policy-id"
+ows policy delete --id "policy-id" --confirm
+```
+
+### API Keys
+
+```bash
+# Create an API key for agent access (scoped to wallets + policies)
+ows key create --name "claude-agent" --wallet "my-wallet" --policy "policy-id"
+ows key create --name "tmp-key" --wallet "my-wallet" --expires-at "2026-04-01T00:00:00Z"
+
+# List all API keys (tokens are never shown)
+ows key list
+
+# Revoke an API key
+ows key revoke --id "key-id" --confirm
 ```
 
 ### Mnemonic Utilities
@@ -176,12 +230,17 @@ Full API reference, return types, and examples: see `{baseDir}/references/python
     <uuid>/
       wallet.json          # Encrypted keystore (AES-256-GCM, scrypt KDF)
       meta.json            # Name, chains, created_at
+  policies/
+    <id>.json              # Policy definitions
+  keys/
+    <id>.json              # API key metadata (token hash, scoped wallets/policies)
 ```
 
 ## Security Model
 
-- Keys encrypted at rest with AES-256-GCM (scrypt N=2^15, r=8, p=1)
+- Keys encrypted at rest with AES-256-GCM (scrypt N=2^16, r=8, p=1)
 - Keys decrypted only after policy checks pass, then immediately wiped from memory
 - Caller never sees raw private key during signing
 - Optional passphrase adds second encryption layer
 - Universal wallets: single mnemonic derives addresses for all supported chains via BIP-44 HD paths
+- API keys use HKDF-SHA256 for token-based decryption; tokens shown once at creation, only hashes stored

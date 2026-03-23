@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://openwallet.sh/install.sh | bash
+curl -fsSL https://docs.openwallet.sh/install.sh | bash
 ```
 
 Or build from source:
