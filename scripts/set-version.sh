@@ -57,7 +57,7 @@ set_rust_version() {
   done
 
   # Update internal dependency version specifiers
-  for crate in ows-signer ows-lib ows-cli; do
+  for crate in ows-signer ows-lib ows-pay ows-cli; do
     sed -i.bak -E "s/(ows-(core|signer|lib|pay) = \{[^}]*version = \")=[^\"]*\"/\1=$VERSION\"/" \
       "$crates_dir/$crate/Cargo.toml"
     rm -f "$crates_dir/$crate/Cargo.toml.bak"
