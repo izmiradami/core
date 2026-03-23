@@ -34,3 +34,5 @@ website/docs/md/
 .DS_Store
 
 bugs/
+
+./docs/policy-engine-implementation*

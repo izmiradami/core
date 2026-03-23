@@ -23,7 +23,7 @@ metadata:
 
 # OWS — Open Wallet Standard
 
-Secure, offline-first multi-chain wallet management. Private keys are encrypted at rest (AES-256-GCM, scrypt KDF) and decrypted only inside an isolated signing process — the caller never sees the raw key.
+Secure, offline-first multi-chain wallet management. Private keys are encrypted at rest (AES-256-GCM, scrypt KDF) and decrypted only after policy checks pass, then immediately wiped from memory — the caller never sees the raw key.
 
 Available as **CLI**, **Node.js SDK** (`@open-wallet-standard/core`), and **Python SDK** (`open-wallet-standard`).
 
@@ -181,7 +181,7 @@ Full API reference, return types, and examples: see `{baseDir}/references/python
 ## Security Model
 
 - Keys encrypted at rest with AES-256-GCM (scrypt N=2^15, r=8, p=1)
-- Signing in isolated process — keys decrypted, used, wiped from memory
+- Keys decrypted only after policy checks pass, then immediately wiped from memory
 - Caller never sees raw private key during signing
 - Optional passphrase adds second encryption layer
 - Universal wallets: single mnemonic derives addresses for all supported chains via BIP-44 HD paths

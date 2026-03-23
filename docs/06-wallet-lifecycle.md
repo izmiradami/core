@@ -29,7 +29,7 @@
 
 ## Design Decision
 
-**OWS defines a complete wallet lifecycle with explicit operations for creation, import (from existing standards), export (to portable formats), backup, and recovery. All lifecycle operations maintain the same key isolation guarantees as signing — private key material is handled exclusively inside the signing enclave.**
+**OWS defines a complete wallet lifecycle with explicit operations for creation, import (from existing standards), export (to portable formats), backup, and recovery. All lifecycle operations maintain the same key isolation guarantees as signing — private key material is decrypted only when needed and immediately wiped after use.**
 
 ### Why Lifecycle Matters for Agent Wallets
 
@@ -66,7 +66,7 @@ const wallet = await ows.createWallet({
 // Returns: WalletDescriptor (never the mnemonic)
 ```
 
-**Flow inside the enclave:**
+**Flow:**
 1. Generate 128 or 256 bits of cryptographically secure randomness
 2. Encode as BIP-39 mnemonic (12 or 24 words)
 3. Derive master seed via PBKDF2
@@ -76,7 +76,7 @@ const wallet = await ows.createWallet({
 7. Wipe mnemonic, seed, and private keys from memory
 8. Return only the `WalletDescriptor` (addresses, IDs, metadata)
 
-The mnemonic NEVER leaves the enclave. The caller receives only public information.
+The mnemonic is never returned to the caller. Only public information (addresses, IDs, metadata) is returned.
 
 ### Create from Existing Private Key
 
@@ -96,7 +96,7 @@ const wallet = await ows.importWallet({
 });
 ```
 
-The key material is passed directly to the enclave, encrypted, and the input buffer is zeroed.
+The key material is encrypted immediately and the input buffer is zeroed.
 
 ## Import
 
@@ -117,7 +117,7 @@ ows wallet import --name "from-metamask" --format mnemonic --chain evm
 # Prompts for mnemonic words interactively (never as a CLI argument)
 ```
 
-The mnemonic is entered interactively to avoid shell history exposure. It is passed directly to the enclave via stdin pipe.
+The mnemonic is entered interactively to avoid shell history exposure. It is read via stdin, encrypted, and the input buffer is zeroed.
 
 ### WIF (Bitcoin Wallet Import Format)
 

@@ -28,7 +28,7 @@ The following are in scope for security reports:
 
 - Key material exposure or leakage
 - Bypass of the policy engine
-- Signing enclave isolation failures
+- Signing process key isolation failures
 - Vault encryption weaknesses
 - Path traversal or unauthorized file access
 - Dependency vulnerabilities with a viable exploit path

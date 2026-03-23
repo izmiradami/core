@@ -71,7 +71,7 @@ interface SignResult {
 3. Authenticate caller: owner (passphrase/passkey) or agent (API key)
 4. If agent: verify wallet is in API key's `walletIds` scope; evaluate API key's policies against the transaction
 5. If owner: skip policy evaluation (sudo access)
-6. If policies pass (or owner), decrypt key material in the signing enclave
+6. If policies pass (or owner), decrypt key material
 7. Sign via chain plugin's signer
 8. Wipe key material
 9. Return signed transaction
