@@ -56,7 +56,7 @@ The bindings are **standalone** — they embed the Rust core via native FFI. No 
 import { createWallet, signMessage } from "@open-wallet-standard/core";
 
 const wallet = createWallet("my-wallet");
-console.log(wallet.accounts); // addresses for EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, Filecoin
+console.log(wallet.accounts); // addresses for EVM, Solana, Bitcoin, Cosmos, Tron, TON, Filecoin, and Sui
 
 const sig = signMessage("my-wallet", "evm", "hello");
 console.log(sig.signature);
@@ -69,6 +69,7 @@ console.log(sig.signature);
 | `ows-core` | Types, CAIP-2/10 parsing, errors, config. Zero crypto dependencies. |
 | `ows-signer` | ChainSigner trait, HD derivation, address derivation for EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, and Filecoin. |
 | `ows-lib` | Library interface used by language bindings and the CLI. |
+| `ows-pay` | x402 payment flows, service discovery, and funding helpers. |
 | `ows-cli` | The `ows` command-line tool. |
 
 ## Supported Chains

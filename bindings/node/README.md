@@ -12,7 +12,7 @@ Secure signing and wallet management for every chain. One vault, one interface �
 - **Zero key exposure.** Private keys are encrypted at rest, decrypted only after policy checks pass, then immediately wiped from memory. Agents authenticate with scoped API tokens and never see raw key material.
 - **Every chain, one interface.** EVM, Solana, Sui, Bitcoin, Cosmos, Tron, TON, Spark, Filecoin — all first-class. CAIP-2/CAIP-10 addressing abstracts away chain-specific details.
 - **Policy before signing.** A pre-signing policy engine gates agent (API key) operations — chain allowlists, expiry, and optional custom executables — before any key is touched.
-- **Built for agents.** MCP server, native SDK, and CLI. A wallet created by one tool works in every other.
+- **Built for agents.** Native SDK and CLI today. A wallet created by one tool works in every other.
 
 ## Install
 
@@ -29,7 +29,7 @@ The package is **fully self-contained** — it embeds the Rust core via native F
 import { createWallet, signMessage } from "@open-wallet-standard/core";
 
 const wallet = createWallet("agent-treasury");
-// => accounts for EVM, Solana, Sui, BTC, Cosmos, Tron, TON, Spark, Filecoin
+// => accounts for EVM, Solana, Bitcoin, Cosmos, Tron, TON, Filecoin, and Sui
 
 const sig = signMessage("agent-treasury", "evm", "hello");
 console.log(sig.signature);
@@ -38,14 +38,14 @@ console.log(sig.signature);
 ### CLI
 
 ```bash
-# Create a wallet (derives addresses for all supported chains)
+# Create a wallet (derives addresses for the current auto-derived chain set)
 ows wallet create --name "agent-treasury"
 
 # Sign a message
 ows sign message --wallet agent-treasury --chain evm --message "hello"
 
 # Sign a transaction
-ows sign tx --wallet agent-treasury --chain evm --tx-hex "deadbeef..."
+ows sign tx --wallet agent-treasury --chain evm --tx "deadbeef..."
 ```
 
 ## Supported Chains
@@ -90,17 +90,17 @@ ows sign tx --wallet agent-treasury --chain evm --tx-hex "deadbeef..."
 ```
 Agent / CLI / App
        │
-       │  OWS Interface (MCP / SDK / CLI)
+       │  OWS Interface (SDK / CLI)
        ▼
 ┌─────────────────────┐
-│    Access Layer      │     1. Agent calls ows.sign()
-│  ┌────────────────┐  │     2. Policy engine evaluates
-│  │ Policy Engine   │  │     3. Key decrypted in memory
+│    Access Layer      │     1. Caller invokes sign()
+│  ┌────────────────┐  │     2. Policy engine evaluates for API tokens
+│  │ Policy Engine   │  │     3. Key decrypted in hardened memory
 │  │ (pre-signing)   │  │     4. Transaction signed
 │  └───────┬────────┘  │     5. Key wiped from memory
 │  ┌───────▼────────┐  │     6. Signature returned
 │  │  Signing Core   │  │
-│  │                 │  │     The agent NEVER sees
+│  │   (in-process)  │  │     The caller NEVER sees
 │  └───────┬────────┘  │     the private key.
 │  ┌───────▼────────┐  │
 │  │  Wallet Vault   │  │
