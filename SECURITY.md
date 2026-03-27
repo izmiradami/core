@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| >= 0.3.2 | Yes       |
-| < 0.3.2  | No        |
+| >= 1.0.0 | Yes       |
+| < 1.0.0  | No        |
 
 ## Reporting a Vulnerability
 
@@ -13,7 +13,7 @@ OWS handles private keys and signing operations. We take security seriously.
 
 **Do not open a public issue for security vulnerabilities.**
 
-Instead, please email **security@dawnlabs.ai** with:
+Instead, please email **nprasad@moonpay.com** with:
 
 - A description of the vulnerability
 - Steps to reproduce

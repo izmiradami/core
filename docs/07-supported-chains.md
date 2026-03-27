@@ -53,6 +53,7 @@ Each network has a canonical chain identifier. Endpoint discovery and transport 
 | Arbitrum | `eip155:42161` |
 | Optimism | `eip155:10` |
 | Base | `eip155:8453` |
+| Plasma | `eip155:9745` |
 | BSC | `eip155:56` |
 | Avalanche | `eip155:43114` |
 
@@ -79,6 +80,7 @@ Implementations MAY support shorthand aliases in CLI contexts:
 ```
 ethereum  → eip155:1
 base      → eip155:8453
+plasma    → eip155:9745
 polygon   → eip155:137
 arbitrum  → eip155:42161
 optimism  → eip155:10

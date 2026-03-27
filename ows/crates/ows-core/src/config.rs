@@ -33,6 +33,7 @@ impl Config {
         rpc.insert("eip155:42161".into(), "https://arb1.arbitrum.io/rpc".into());
         rpc.insert("eip155:10".into(), "https://mainnet.optimism.io".into());
         rpc.insert("eip155:8453".into(), "https://mainnet.base.org".into());
+        rpc.insert("eip155:9745".into(), "https://rpc.plasma.to".into());
         rpc.insert(
             "eip155:56".into(),
             "https://bsc-dataseed.binance.org".into(),
@@ -192,6 +193,7 @@ mod tests {
             config.rpc_url("eip155:137"),
             Some("https://polygon-rpc.com")
         );
+        assert_eq!(config.rpc_url("eip155:9745"), Some("https://rpc.plasma.to"));
         assert_eq!(
             config.rpc_url("solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"),
             Some("https://api.mainnet-beta.solana.com")
@@ -254,7 +256,7 @@ mod tests {
     fn test_load_or_default_nonexistent() {
         let config = Config::load_or_default_from(std::path::Path::new("/nonexistent/config.json"));
         // Should have all default RPCs
-        assert_eq!(config.rpc.len(), 17);
+        assert_eq!(config.rpc.len(), 18);
         assert_eq!(config.rpc_url("eip155:1"), Some("https://eth.llamarpc.com"));
     }
 
