@@ -196,7 +196,7 @@ Lists all keys with ID, name, wallets, policies, and creation time. Tokens are n
 ows key revoke --id <key-id> --confirm
 ```
 
-Deletes the key file. The encrypted mnemonic copy is gone — the token becomes useless.
+Deletes the key file. The encrypted secret copy is gone — the token becomes useless.
 
 ## End-to-End Example: Agent Access
 

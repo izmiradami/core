@@ -128,6 +128,35 @@ fn derive_all_accounts_from_keys(keys: &KeyPair) -> Result<Vec<WalletAccount>, O
     Ok(accounts)
 }
 
+pub(crate) fn secret_to_signing_key(
+    secret: &SecretBytes,
+    key_type: KeyType,
+    chain_type: ChainType,
+    index: Option<u32>,
+) -> Result<SecretBytes, OwsLibError> {
+    match key_type {
+        KeyType::Mnemonic => {
+            // Use the SecretBytes directly as a &str to avoid un-zeroized String copies.
+            let phrase = std::str::from_utf8(secret.expose()).map_err(|_| {
+                OwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into())
+            })?;
+            let mnemonic = Mnemonic::from_phrase(phrase)?;
+            let signer = signer_for_chain(chain_type);
+            let path = signer.default_derivation_path(index.unwrap_or(0));
+            let curve = signer.curve();
+            Ok(HdDeriver::derive_from_mnemonic_cached(
+                &mnemonic, "", &path, curve,
+            )?)
+        }
+        KeyType::PrivateKey => {
+            // JSON key pair — extract the right key for this chain's curve
+            let keys = KeyPair::from_json_bytes(secret.expose())?;
+            let signer = signer_for_chain(chain_type);
+            Ok(SecretBytes::from_slice(keys.key_for_curve(signer.curve())))
+        }
+    }
+}
+
 /// Generate a new BIP-39 mnemonic phrase.
 pub fn generate_mnemonic(words: u32) -> Result<String, OwsLibError> {
     let strength = match words {
@@ -610,28 +639,7 @@ pub fn decrypt_signing_key(
     let wallet = vault::load_wallet_by_name_or_id(wallet_name_or_id, vault_path)?;
     let envelope: CryptoEnvelope = serde_json::from_value(wallet.crypto.clone())?;
     let secret = decrypt(&envelope, passphrase)?;
-
-    match wallet.key_type {
-        KeyType::Mnemonic => {
-            // Use the SecretBytes directly as a &str to avoid un-zeroized String copies.
-            let phrase = std::str::from_utf8(secret.expose()).map_err(|_| {
-                OwsLibError::InvalidInput("wallet contains invalid UTF-8 mnemonic".into())
-            })?;
-            let mnemonic = Mnemonic::from_phrase(phrase)?;
-            let signer = signer_for_chain(chain_type);
-            let path = signer.default_derivation_path(index.unwrap_or(0));
-            let curve = signer.curve();
-            Ok(HdDeriver::derive_from_mnemonic_cached(
-                &mnemonic, "", &path, curve,
-            )?)
-        }
-        KeyType::PrivateKey => {
-            // JSON key pair — extract the right key for this chain's curve
-            let keys = KeyPair::from_json_bytes(secret.expose())?;
-            let signer = signer_for_chain(chain_type);
-            Ok(SecretBytes::from_slice(keys.key_for_curve(signer.curve())))
-        }
-    }
+    secret_to_signing_key(&secret, wallet.key_type, chain_type, index)
 }
 
 /// Resolve the RPC URL: explicit > config override (exact chain_id) > config (namespace) > built-in default.

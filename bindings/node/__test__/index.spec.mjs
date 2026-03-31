@@ -301,6 +301,53 @@ describe('@open-wallet-standard/core', () => {
     deleteWallet(wallet.id, vaultDir);
   });
 
+  it('signs with an API key for a wallet imported from a private key', () => {
+    createPolicy(JSON.stringify({
+      id: 'test-imported-wallet',
+      name: 'Imported Wallet',
+      version: 1,
+      created_at: '2026-03-31T00:00:00Z',
+      rules: [
+        { type: 'allowed_chains', chain_ids: ['eip155:8453'] },
+      ],
+      action: 'deny',
+    }), vaultDir);
+
+    const wallet = importWalletPrivateKey(
+      'policy-imported-wallet',
+      'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+      '',
+      vaultDir,
+      'evm',
+    );
+    const key = createApiKey(
+      'imported-wallet-agent',
+      [wallet.id],
+      ['test-imported-wallet'],
+      '',
+      null,
+      vaultDir,
+    );
+
+    const msgSig = signMessage(
+      wallet.id,
+      'base',
+      'hello',
+      key.token,
+      undefined,
+      undefined,
+      vaultDir,
+    );
+    assert.ok(msgSig.signature.length > 0);
+
+    const txSig = signTransaction(wallet.id, 'base', 'deadbeef', key.token, null, vaultDir);
+    assert.ok(txSig.signature.length > 0);
+
+    revokeApiKey(key.id, vaultDir);
+    deletePolicy('test-imported-wallet', vaultDir);
+    deleteWallet(wallet.id, vaultDir);
+  });
+
   it('executable policy gates signing', () => {
     const wallet = createWallet('exe-test', undefined, 12, vaultDir);
 
